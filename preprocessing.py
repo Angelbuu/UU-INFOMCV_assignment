@@ -10,6 +10,7 @@ os.makedirs('images/success', exist_ok=True)
 os.makedirs('images/fail', exist_ok=True)
 
 # termination criteria
+standard_size = (4284, 5712)
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(8,5,0)
@@ -26,6 +27,11 @@ images = glob.glob('images/*.jpg')
 for fname in images:
     img = cv.imread(fname)
     if img is None: continue
+    
+    h, w = img.shape[:2]
+    if (w, h) != standard_size:
+        print(f"Standardizing resolution for: {fname}")
+        img = cv.resize(img, standard_size, interpolation=cv.INTER_AREA)
     
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
