@@ -88,7 +88,6 @@ def find_corners_manually(img, pattern, max_width=600):
         cols
     )
 
-    # Flatten to row-major order
     flat_points = [
         grid_points[j][i]
         for i in range(cols)
@@ -127,6 +126,8 @@ for fname in images:
     if not ret:
         print('Failed to detect corners automatically')
         corners = find_corners_manually(gray, (9, 6))
+    else:
+        print('Automatic detection successful')
 
     # print('Corners:', corners)
     # print(corners.shape)
@@ -158,4 +159,4 @@ print("\nDistortion coefficients:")
 print(dist)
 
 # 3. Save the results for future use (optional but recommended)
-np.savez('F.npz', mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
+np.savez('F.npz', objpoints=objpoints, imgpoints=imgpoints)
