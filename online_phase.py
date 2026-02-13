@@ -32,40 +32,62 @@ objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
 
 ret, rvec, tvec = cv.solvePnP(objp, corners2, run1['mtx'], run1['dist'])
 
-cv.drawFrameAxes(img, run1['mtx'], run1['dist'], rvec, tvec, 90, 20)
 
-cube_edge_length = 40
-cube_color = 128, 0, 128
-cube_points = np.float32([
-    [0, 0, 0],
-    [cube_edge_length, 0, 0],
-    [0, cube_edge_length, 0],
-    [cube_edge_length, cube_edge_length, 0],
-    [0, 0, -cube_edge_length],
-    [cube_edge_length, 0, -cube_edge_length],
-    [0, cube_edge_length, -cube_edge_length],
-    [cube_edge_length, cube_edge_length, -cube_edge_length]
-])
+def project_points(points, rvec, tvec, mtx, dist):
+    projected_points, _ = cv.projectPoints(points, rvec, tvec, mtx, dist)
+    return np.int32(projected_points).reshape(-1, 2)
 
-projected_cube_points, _ = cv.projectPoints(cube_points, rvec, tvec, run1['mtx'], run1['dist'])
-projected_cube_points = np.int32(projected_cube_points).reshape(-1, 2)
 
-cv.line(img, projected_cube_points[0], projected_cube_points[1], cube_color, 10)
-cv.line(img, projected_cube_points[0], projected_cube_points[2], cube_color, 10)
-cv.line(img, projected_cube_points[0], projected_cube_points[4], cube_color, 10)
+def draw_axes(img, mtx, dist, rvec, tvec, axis_length=90, line_thickness=20):
+    axes_points = np.float32([
+        [0, 0, 0],
+        [axis_length, 0, 0],
+        [0, axis_length, 0],
+        [0, 0, -axis_length]
+    ])
+    proj_axes_points = project_points(axes_points, rvec, tvec, mtx, dist)
 
-cv.line(img, projected_cube_points[1], projected_cube_points[3], cube_color, 10)
-cv.line(img, projected_cube_points[1], projected_cube_points[5], cube_color, 10)
+    img = cv.line(img, proj_axes_points[0], proj_axes_points[1], (0, 0, 255), line_thickness)
+    img = cv.line(img, proj_axes_points[0], proj_axes_points[2], (0, 255, 0), line_thickness)
+    img = cv.line(img, proj_axes_points[0], proj_axes_points[3], (255, 0, 0), line_thickness)
 
-cv.line(img, projected_cube_points[2], projected_cube_points[3], cube_color, 10)
-cv.line(img, projected_cube_points[2], projected_cube_points[6], cube_color, 10)
 
-cv.line(img, projected_cube_points[3], projected_cube_points[7], cube_color, 10)
+def draw_cube(img, mtx, dist, rvec, tvec, edge_length=40, color=(120, 0, 120), line_thickness=10):
+    cube_points = np.float32([
+        [0, 0, 0],
+        [edge_length, 0, 0],
+        [edge_length, edge_length, 0],
+        [0, edge_length, 0],
+        [0, 0, -edge_length],
+        [edge_length, 0, -edge_length],
+        [edge_length, edge_length, -edge_length],
+        [0, edge_length, -edge_length],
+    ])
+    proj_cube_points = project_points(cube_points, rvec, tvec, mtx, dist)
 
-cv.line(img, projected_cube_points[4], projected_cube_points[5], cube_color, 10)
-cv.line(img, projected_cube_points[4], projected_cube_points[6], cube_color, 10)
-cv.line(img, projected_cube_points[5], projected_cube_points[7], cube_color, 10)
-cv.line(img, projected_cube_points[6], projected_cube_points[7], cube_color, 10)
+    cv.polylines(img, [proj_cube_points[:4]], True, color, line_thickness)
+    cv.polylines(img, [proj_cube_points[4:]], True, color, line_thickness)
+    for i in range(4):
+        cv.line(img, proj_cube_points[i], proj_cube_points[i+4], color, line_thickness)
+
+
+def draw_polygon(img, mtx, dist, rvec, tvec, edge_length=40):
+    polygon_points = np.float32([
+        [0, 0, -edge_length],
+        [edge_length, 0, -edge_length],
+        [edge_length, edge_length, -edge_length],
+        [0, edge_length, -edge_length],
+        [edge_length/2, edge_length/2, -edge_length]
+    ])
+    proj_polygon_points = project_points(polygon_points[:4], rvec, tvec, mtx, dist)
+
+    color = (0, 0, 0)
+    cv.fillConvexPoly(img, proj_polygon_points, color)
+
+
+draw_axes(img, run1['mtx'], run1['dist'], rvec, tvec)
+draw_cube(img, run1['mtx'], run1['dist'], rvec, tvec)
+draw_polygon(img, run1['mtx'], run1['dist'], rvec, tvec)
 
 scale = 0.2
 display_img = cv.resize(img, None, fx=scale, fy=scale)
