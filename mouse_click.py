@@ -1,4 +1,3 @@
-from re import S
 import numpy as np
 import cv2 as cv
 import glob
@@ -102,9 +101,6 @@ def find_corners_manually(img, pattern, max_width=600):
 
 
 def main():
-    # termination criteria
-    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
     objp = np.zeros((9 * 6, 3), np.float32)
     objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
@@ -128,11 +124,9 @@ def main():
         else:
             print('Automatic detection successful')
 
-        # print('Corners:', corners)
-        # print(corners.shape)
-
         objpoints.append(objp)
 
+        criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
         imgpoints.append(corners2)
 
@@ -145,18 +139,6 @@ def main():
 
     cv.destroyAllWindows()
 
-    # 1. Perform the actual calibration
-    # This function calculates the Intrinsic Matrix, Distortion Coefficients, etc.
-    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-
-    # 2. Print the results
-    print("Camera matrix (Intrinsic Parameters):")
-    print(mtx)
-
-    print("\nDistortion coefficients:")
-    print(dist)
-
-    # 3. Save the results for future use (optional but recommended)
     np.savez('F.npz', objpoints=objpoints, imgpoints=imgpoints)
 
 

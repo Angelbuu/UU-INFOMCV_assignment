@@ -19,10 +19,34 @@ except FileNotFoundError:
     print("Error: F.npz not found.")
 
 # Standard image resolution (Width, Height)
-img_size = (4284, 5712) 
+img_size = (4284, 5712)
+
+
+def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.2):
+    if len(op) == 1:
+        return base_rms, mtx, dist, rvecs, tvecs
+    lowest_rms = np.inf
+    bad_image_idx = -1
+    for i in range(len(op)):
+        rms, new_mtx, new_dist, new_rvecs, new_tvecs = cv.calibrateCamera(
+            op[:i] + op[i+1:], ip[:i] + ip[i+1:], img_size, None, None, flags=0
+        )
+        if rms < base_rms - epsilon and rms < lowest_rms:
+            lowest_rms = rms
+            mtx, dist, rvecs, tvecs = new_mtx, new_dist, new_rvecs, new_tvecs
+            bad_image_idx = i
+    if lowest_rms > base_rms:
+        return base_rms, mtx, dist, rvecs, tvecs
+    else:
+        print('Rejected bad image, number of remaining images:', len(op) - 1)
+        print(f'Previous rms {base_rms} vs new rms {lowest_rms}')
+        return reject_bad_image(op[:bad_image_idx] + op[bad_image_idx+1:],
+                                ip[:bad_image_idx] + ip[bad_image_idx+1:],
+                                lowest_rms, mtx, dist, rvecs, tvecs, epsilon)
+
 
 # 2. CALIBRATION FUNCTION
-def run_calibration_experiment(op, ip, run_name):
+def run_calibration_experiment(op, ip, run_name, reject_bad_images=False):
     """
     Performs calibration according to the assignment:
     - Estimating the camera center (not fixed).
@@ -32,6 +56,9 @@ def run_calibration_experiment(op, ip, run_name):
     ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(
         op, ip, img_size, None, None, flags=0
     )
+
+    if reject_bad_images:
+        ret, mtx, dist, rvecs, tvecs = reject_bad_image(op, ip, ret, mtx, dist, rvecs, tvecs)
     
     print(f"\n--- {run_name} ---")
     print(f"Reprojection Error (RMS): {ret:.5f} pixels")
@@ -59,12 +86,12 @@ mtx1, dist1 = run_calibration_experiment(run1_obj, run1_img, "Run 1: Full Datase
 run2_obj = obj_auto[:5] + obj_manual
 run2_img = img_auto[:5] + img_manual
 mtx2, dist2 = run_calibration_experiment(run2_obj, run2_img, "Run 2: Balanced (10 imgs)")
-
-# --- RUN 3: Minimum subset of 5 images ---
-# (5 automatic only - the same 5 used in Run 2)
+#
+# # --- RUN 3: Minimum subset of 5 images ---
+# # (5 automatic only - the same 5 used in Run 2)
 run3_obj = obj_auto[:5]
 run3_img = img_auto[:5]
 mtx3, dist3 = run_calibration_experiment(run3_obj, run3_img, "Run 3: Minimum (5 imgs)")
-
-# Save final results of Run 1 for future steps
+#
+# # Save final results of Run 1 for future steps
 np.savez('final_calibration_results.npz', mtx=(mtx1, mtx2, mtx3), dist=(dist1, dist2, dist3))

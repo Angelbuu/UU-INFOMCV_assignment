@@ -124,6 +124,7 @@ def main():
     test_image = glob.glob('images/success/IMG_5954.jpg')
     camera_params = np.load('final_calibration_results.npz')
     print(camera_params)
+    print('K:', camera_params['mtx'][0])
     for i in range(3):
         img = cv.imread(test_image[0])
         objp, corners = prepare_object_and_image_points(img)
