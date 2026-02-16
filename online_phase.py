@@ -1,58 +1,44 @@
 import numpy as np
 import cv2 as cv
 import glob
-from mouse_click import find_corners_manually
-
-criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-
-test_image = glob.glob('images/success/IMG_5954.jpg')
-
-img = cv.imread(test_image[0])
-gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-
-# Find the chess board corners
-ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
-
-# ret, man_corners = find_corners_manually(gray, (9, 6))
-#
-print('Auto corners:', corners, corners.shape)
-# print('Manual corners:', man_corners, man_corners.shape)
-# print('Difference:', corners - man_corners)
-
-corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-# man_corners2 = cv.cornerSubPix(gray, man_corners, (11, 11), (-1, -1), criteria)
-
-run1 = np.load('final_calibration_results.npz')
-print(run1.files)
-
-cv.drawChessboardCorners(img, (9, 6), corners2, ret)
-
-objp = np.zeros((9 * 6, 3), np.float32)
-objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
-
-ret, rvec, tvec = cv.solvePnP(objp, corners2, run1['mtx'], run1['dist'])
 
 
-def project_points(points, rvec, tvec, mtx, dist):
-    projected_points, _ = cv.projectPoints(points, rvec, tvec, mtx, dist)
+def prepare_object_and_image_points(img):
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
+
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+
+    cv.drawChessboardCorners(img, (9, 6), corners2, ret)
+
+    objp = np.zeros((9 * 6, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
+
+    return objp, corners2
+
+
+def project_points(points, r_vec, t_vec, mtx, dist):
+    projected_points, _ = cv.projectPoints(points, r_vec, t_vec, mtx, dist)
     return np.int32(projected_points).reshape(-1, 2)
 
 
-def draw_axes(img, mtx, dist, rvec, tvec, axis_length=90, line_thickness=20):
+def draw_axes(img, mtx, dist, r_vec, t_vec, axis_length=90, line_thickness=20):
     axes_points = np.float32([
         [0, 0, 0],
         [axis_length, 0, 0],
         [0, axis_length, 0],
         [0, 0, -axis_length]
     ])
-    proj_axes_points = project_points(axes_points, rvec, tvec, mtx, dist)
+    proj_axes_points = project_points(axes_points, r_vec, t_vec, mtx, dist)
 
-    img = cv.line(img, proj_axes_points[0], proj_axes_points[1], (0, 0, 255), line_thickness)
-    img = cv.line(img, proj_axes_points[0], proj_axes_points[2], (0, 255, 0), line_thickness)
-    img = cv.line(img, proj_axes_points[0], proj_axes_points[3], (255, 0, 0), line_thickness)
+    cv.line(img, proj_axes_points[0], proj_axes_points[1], (0, 0, 255), line_thickness)
+    cv.line(img, proj_axes_points[0], proj_axes_points[2], (0, 255, 0), line_thickness)
+    cv.line(img, proj_axes_points[0], proj_axes_points[3], (255, 0, 0), line_thickness)
 
 
-def draw_cube(img, mtx, dist, rvec, tvec, edge_length=40, color=(120, 0, 120), line_thickness=10):
+def draw_cube(img, mtx, dist, r_vec, t_vec, edge_length=40, color=(120, 0, 120), line_thickness=10):
     cube_points = np.float32([
         [0, 0, 0],
         [edge_length, 0, 0],
@@ -63,7 +49,7 @@ def draw_cube(img, mtx, dist, rvec, tvec, edge_length=40, color=(120, 0, 120), l
         [edge_length, edge_length, -edge_length],
         [0, edge_length, -edge_length],
     ])
-    proj_cube_points = project_points(cube_points, rvec, tvec, mtx, dist)
+    proj_cube_points = project_points(cube_points, r_vec, t_vec, mtx, dist)
 
     cv.polylines(img, [proj_cube_points[:4]], True, color, line_thickness)
     cv.polylines(img, [proj_cube_points[4:]], True, color, line_thickness)
@@ -71,7 +57,7 @@ def draw_cube(img, mtx, dist, rvec, tvec, edge_length=40, color=(120, 0, 120), l
         cv.line(img, proj_cube_points[i], proj_cube_points[i+4], color, line_thickness)
 
 
-def draw_polygon(img, mtx, dist, rvec, tvec, edge_length=40):
+def draw_polygon(img, mtx, dist, r_vec, t_vec, edge_length=40):
     polygon_points = np.float32([
         [0, 0, -edge_length],
         [edge_length, 0, -edge_length],
@@ -79,19 +65,70 @@ def draw_polygon(img, mtx, dist, rvec, tvec, edge_length=40):
         [0, edge_length, -edge_length],
         [edge_length/2, edge_length/2, -edge_length]
     ])
-    proj_polygon_points = project_points(polygon_points[:4], rvec, tvec, mtx, dist)
+    proj_polygon_points = project_points(polygon_points, r_vec, t_vec, mtx, dist)
 
-    color = (0, 0, 0)
-    cv.fillConvexPoly(img, proj_polygon_points, color)
+    r_matrix, _ = cv.Rodrigues(r_vec)
+    print(r_matrix)
+    print(t_vec)
+    print(polygon_points[4])
+
+    center_point_w = polygon_points[4].reshape(3, 1)
+    print(center_point_w)
+
+    center_point_c = r_matrix @ center_point_w + t_vec
+    print(center_point_c)
+
+    distance_to_camera = np.linalg.norm(center_point_c) / 1000
+    print(distance_to_camera)
+
+    normal_world = np.array([0, 0, -1])
+    np.reshape(normal_world, (3, 1))
+    normal_cam = r_matrix @ normal_world
+    normal_cam = normal_cam.flatten()
+    cos_theta = abs(np.dot(normal_cam, np.array([0, 0, 1])))
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    theta = np.degrees(np.arccos(cos_theta))
+    print(proj_polygon_points[4])
+    print('Theta:', theta)
+
+    intensity = 0 if distance_to_camera >= 4 else (4 - distance_to_camera) / 4 * 255
+    hue = 0 if theta >= 45 else (45 - theta) / 45 * 179
+    saturation = 255
+
+    hsv_polygon_color = np.uint8([[[hue, saturation, intensity]]])
+    rgb_polygon_color = cv.cvtColor(hsv_polygon_color, cv.COLOR_HSV2BGR)[0][0]
+    rgb_polygon_color = tuple(int(x) for x in rgb_polygon_color)
+    print(rgb_polygon_color)
+    cv.fillConvexPoly(img, proj_polygon_points[:4], rgb_polygon_color)
+    cv.circle(img, proj_polygon_points[4], 5, (255, 255, 255), 20)
+    cv.putText(img, f'{distance_to_camera:.3f}',
+               (proj_polygon_points[4][0], proj_polygon_points[4][1]),
+               cv.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 255), 5)
 
 
-draw_axes(img, run1['mtx'], run1['dist'], rvec, tvec)
-draw_cube(img, run1['mtx'], run1['dist'], rvec, tvec)
-draw_polygon(img, run1['mtx'], run1['dist'], rvec, tvec)
+def run(objp, corners, mtx, dist, img, scale=0.2):
+    ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
 
-scale = 0.2
-display_img = cv.resize(img, None, fx=scale, fy=scale)
-cv.imshow('img', display_img)
-cv.waitKey(0)
+    draw_axes(img, mtx, dist, r_vec, t_vec)
+    draw_cube(img, mtx, dist, r_vec, t_vec)
+    draw_polygon(img, mtx, dist, r_vec, t_vec)
 
-cv.destroyAllWindows()
+    display_img = cv.resize(img, None, fx=scale, fy=scale)
+    cv.imshow('img', display_img)
+    cv.waitKey(0)
+
+    cv.destroyAllWindows()
+
+
+def main():
+    test_image = glob.glob('images/success/IMG_5954.jpg')
+    camera_params = np.load('final_calibration_results.npz')
+    print(camera_params)
+    for i in range(3):
+        img = cv.imread(test_image[0])
+        objp, corners = prepare_object_and_image_points(img)
+        run(objp, corners, camera_params['mtx'][i], camera_params['dist'][i], img)
+
+
+if __name__ == '__main__':
+    main()

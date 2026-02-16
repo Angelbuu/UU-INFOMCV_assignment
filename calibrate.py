@@ -67,4 +67,4 @@ run3_img = img_auto[:5]
 mtx3, dist3 = run_calibration_experiment(run3_obj, run3_img, "Run 3: Minimum (5 imgs)")
 
 # Save final results of Run 1 for future steps
-np.savez('final_calibration_results.npz', mtx=mtx1, dist=dist1)
+np.savez('final_calibration_results.npz', mtx=(mtx1, mtx2, mtx3), dist=(dist1, dist2, dist3))
