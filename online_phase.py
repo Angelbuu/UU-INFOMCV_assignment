@@ -120,16 +120,19 @@ def run(objp, corners, mtx, dist, img, scale=0.2):
     cv.destroyAllWindows()
 
 
-def main():
+def main(new_image=True):
     test_image = glob.glob('images/success/IMG_5954.jpg')
     camera_params = np.load('final_calibration_results.npz')
     print(camera_params)
     print('K:', camera_params['mtx'][0])
+    img = cv.imread(test_image[0])
+    objp, corners = prepare_object_and_image_points(img)
     for i in range(3):
-        img = cv.imread(test_image[0])
-        objp, corners = prepare_object_and_image_points(img)
+        if new_image:
+            img = cv.imread(test_image[0])
+            objp, corners = prepare_object_and_image_points(img)
         run(objp, corners, camera_params['mtx'][i], camera_params['dist'][i], img)
 
 
 if __name__ == '__main__':
-    main()
+    main(True)
