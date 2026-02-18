@@ -13,7 +13,6 @@ with np.load('final_calibration_results.npz') as data:
     if mtx.ndim == 3:  
         mtx, dist = mtx[0], dist[0]
 
-# DEFINE 3D OBJECTS (Axes and Cube)
 axis = np.float32([[3,0,0], [0,3,0], [0,0,-3]]).reshape(-1,3) * SQUARE_SIZE_MM
 cube = np.float32([[0,0,0], [2,0,0], [2,2,0], [0,2,0],
                    [0,0,-2], [2,0,-2], [2,2,-2], [0,2,-2]]) * SQUARE_SIZE_MM
@@ -41,7 +40,7 @@ while True:
         imgpts_cube, _ = cv.projectPoints(cube, rvec, tvec, mtx, dist)
         imgpts_cube = np.int32(imgpts_cube).reshape(-1,2)
 
-        # --- DRAWING ---
+        # DRAWING
         # 1. Axes
         origin = tuple(np.int32(corners2[0].ravel()))
         frame = cv.line(frame, origin, tuple(np.int32(imgpts_axis[0].ravel())), (0,0,255), 5)
