@@ -7,7 +7,7 @@ try:
     obj_auto = list(auto_data['objpoints'])
     img_auto = list(auto_data['imgpoints'])
 except FileNotFoundError:
-    print("Error: B_points.npz not found. Ensure you saved raw points in preprocessing.")
+    print("Error: B_points.npz not found.")
 
 try:
     manual_data = np.load('F.npz')
