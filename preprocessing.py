@@ -15,8 +15,8 @@ criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 objp = np.zeros((9*6,3), np.float32)
 objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2) * 20
 
-objpoints = [] # 3d points
-imgpoints = [] # 2d points
+objpoints = []
+imgpoints = [] 
 
 images = glob.glob('images/*.jpg')
 for fname in images:
