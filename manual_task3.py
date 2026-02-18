@@ -20,9 +20,7 @@ def get_warped_points(img_path):
     clicked_pts = []
 
     print(f"\nProcessing: {img_path}")
-    print("Click the 4 OUTERMOST corners of the chessboard grid in order:")
-    print("1. Top-Left  2. Top-Right  3. Bottom-Right  4. Bottom-Left")
-
+    
     def mouse_callback(event, x, y, flags, param):
         """On left-click: store (x,y) and draw green circle for feedback."""
         if event == cv.EVENT_LBUTTONDOWN:
@@ -56,7 +54,7 @@ def get_warped_points(img_path):
         original_corners = cv.perspectiveTransform(corners_warped.reshape(-1, 1, 2), M_inv)
         return original_corners
     
-    print("Failed to detect corners even after warping. Try clicking closer to the grid lines.")
+    print("Failed to detect corners even after warping.")
     return None
 
 
@@ -77,4 +75,3 @@ for f in manual_files:
         all_img.append(res)
 
 np.savez('F_task3.npz', objpoints=all_obj, imgpoints=all_img)
-print("Saved 5 high-precision images to F_task3.npz!")
