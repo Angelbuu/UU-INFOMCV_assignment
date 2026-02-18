@@ -4,6 +4,7 @@ import glob
 
 
 def prepare_object_and_image_points(img):
+    """Returns 3D world points of chessboard corners and corresponding 2D image points."""
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
     ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
@@ -18,11 +19,13 @@ def prepare_object_and_image_points(img):
 
 
 def project_points(points, r_vec, t_vec, mtx, dist):
+    """Project 3D world points to 2D image points, using camera parameters."""
     projected_points, _ = cv.projectPoints(points, r_vec, t_vec, mtx, dist)
     return np.int32(projected_points).reshape(-1, 2)
 
 
 def draw_axes(img, mtx, dist, r_vec, t_vec, axis_length=90, line_thickness=20):
+    """Draws 3D world axes in the image."""
     axes_points = np.float32([
         [0, 0, 0],
         [axis_length, 0, 0],
@@ -37,6 +40,7 @@ def draw_axes(img, mtx, dist, r_vec, t_vec, axis_length=90, line_thickness=20):
 
 
 def draw_cube(img, mtx, dist, r_vec, t_vec, edge_length=40, color=(120, 0, 120), line_thickness=10):
+    """Draws 3D world cube in the image."""
     cube_points = np.float32([
         [0, 0, 0],
         [edge_length, 0, 0],
@@ -56,6 +60,10 @@ def draw_cube(img, mtx, dist, r_vec, t_vec, edge_length=40, color=(120, 0, 120),
 
 
 def draw_polygon(img, mtx, dist, r_vec, t_vec, edge_length=40):
+    """
+    Colors the top of the cube based on the distance and orientation of the camera,
+    places a dot in the center and shows the distance.
+    """
     polygon_points = np.float32([
         [0, 0, -edge_length],
         [edge_length, 0, -edge_length],
@@ -95,6 +103,10 @@ def draw_polygon(img, mtx, dist, r_vec, t_vec, edge_length=40):
 
 
 def run(objp, corners, mtx, dist, img, scale=0.1):
+    """
+    Draws 3D world axes, cube with colored top based on distance and orientation of camera,
+    shows a dot with the distance in the center of the colored top. Shows the image.
+    """
     ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
 
     draw_axes(img, mtx, dist, r_vec, t_vec)
@@ -109,6 +121,7 @@ def run(objp, corners, mtx, dist, img, scale=0.1):
 
 
 def main(new_image=True):
+    """Loads the test image and performs the online phase for 3 different calibration runs."""
     test_image = glob.glob('images/test_image.jpg')
     camera_params = np.load('final_calibration_results.npz')
     img = cv.imread(test_image[0])

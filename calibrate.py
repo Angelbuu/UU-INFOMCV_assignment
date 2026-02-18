@@ -21,6 +21,10 @@ img_size = (4284, 5712)
 
 
 def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.1):
+    """
+    Recursively rejects an image that worsens the calibration the most and is above given
+    epsilon threshold.
+    """
     if len(op) == 1:
         return base_rms, mtx, dist, rvecs, tvecs
     lowest_rms = np.inf
