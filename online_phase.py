@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 import glob
+from preprocessing import resize_image
 
 
 def prepare_object_and_image_points(img):
@@ -122,15 +123,15 @@ def run(objp, corners, mtx, dist, img, scale=0.1):
 
 def main(new_image=True):
     """Loads the test image and performs the online phase for 3 different calibration runs."""
-    test_image = glob.glob('images/test_image.jpg')
+    test_image = glob.glob('images/success/IMG_5919.jpg')
     camera_params = np.load('final_calibration_results.npz')
     img = cv.imread(test_image[0])
-    img = cv.resize(img, (4284, 5712))
+    img = resize_image(img)
     objp, corners = prepare_object_and_image_points(img)
     for i in range(3):
         if new_image:
             img = cv.imread(test_image[0])
-            img = cv.resize(img, (4284, 5712))
+            img = resize_image(img)
             objp, corners = prepare_object_and_image_points(img)
         run(objp, corners, camera_params['mtx'][i], camera_params['dist'][i], img)
 

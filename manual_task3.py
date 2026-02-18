@@ -1,12 +1,11 @@
 import cv2 as cv
 import numpy as np
 
-CHESSBOARD_SIZE = (9, 6)
-SQUARE_SIZE_MM = 20
 DST_SIZE = 800 
 
 objp = np.zeros((9 * 6, 3), np.float32)
-objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * SQUARE_SIZE_MM
+objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
+
 
 def get_warped_points(img_path):
     """
@@ -14,7 +13,8 @@ def get_warped_points(img_path):
     Returns None if image fails to load or corners cannot be found after warping.
     """
     img = cv.imread(img_path)
-    if img is None: return None
+    if img is None:
+        return None
     
     display_img = img.copy()
     clicked_pts = []
@@ -36,7 +36,6 @@ def get_warped_points(img_path):
         cv.waitKey(1)
     cv.destroyAllWindows()
 
-    # Fulfills Choice Task 3
     src = np.float32(clicked_pts)
     dst = np.float32([[0, 0], [DST_SIZE, 0], [DST_SIZE, DST_SIZE], [0, DST_SIZE]])
     
@@ -44,7 +43,7 @@ def get_warped_points(img_path):
     warped = cv.warpPerspective(img, M, (DST_SIZE, DST_SIZE))
     
     gray_warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY)
-    ret, corners_warped = cv.findChessboardCorners(gray_warped, CHESSBOARD_SIZE, None)
+    ret, corners_warped = cv.findChessboardCorners(gray_warped, (9, 6), None)
     
     if ret:
         criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)

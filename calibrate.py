@@ -1,19 +1,14 @@
 import numpy as np
 import cv2 as cv
 
-try:
-    auto_data = np.load('B.npz') 
-    obj_auto = list(auto_data['objpoints'])
-    img_auto = list(auto_data['imgpoints'])
-except FileNotFoundError:
-    print("Error: B_points.npz not found.")
 
-try:
-    manual_data = np.load('F.npz')
-    obj_manual = list(manual_data['objpoints'])
-    img_manual = list(manual_data['imgpoints'])
-except FileNotFoundError:
-    print("Error: F.npz not found.")
+auto_data = np.load('B.npz')
+obj_auto = list(auto_data['objpoints'])
+img_auto = list(auto_data['imgpoints'])
+
+manual_data = np.load('F.npz')
+obj_manual = list(manual_data['objpoints'])
+img_manual = list(manual_data['imgpoints'])
 
 
 img_size = (4284, 5712)
@@ -22,7 +17,7 @@ img_size = (4284, 5712)
 def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.1):
     """
     Recursively rejects an image that worsens the calibration the most and is above given
-    epsilon threshold.
+    epsilon threshold, until the threshold is not crossed.
     """
     if len(op) == 1:
         return base_rms, mtx, dist, rvecs, tvecs
@@ -46,7 +41,6 @@ def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.1):
                                 lowest_rms, mtx, dist, rvecs, tvecs, epsilon)
 
 
-
 def run_calibration_experiment(op, ip, run_name, reject_bad_images=True):
     """
     Performs calibration and implements Choice Task 2: 
@@ -59,8 +53,8 @@ def run_calibration_experiment(op, ip, run_name, reject_bad_images=True):
     if reject_bad_images:
         ret, mtx, dist, rvecs, tvecs = reject_bad_image(op, ip, ret, mtx, dist, rvecs, tvecs, epsilon=0.1)
     
-    print(f"\n--- {run_name} Results ---")
-    print(f"Final Reprojection Error (RMS): {ret:.5f} pixels")
+    print(f"\n{run_name} Results ---")
+    print(f"Reprojection Error (RMS): {ret:.5f} pixels")
     print("Camera Matrix (K):")
     print(np.array2string(mtx, precision=4, suppress_small=True))
     

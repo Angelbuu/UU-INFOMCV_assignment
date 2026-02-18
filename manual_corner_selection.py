@@ -39,7 +39,6 @@ def click_event(event, x, y, flags, params):
     display_img, original_img, scale_x, scale_y, corners = params
 
     if event == cv.EVENT_LBUTTONDOWN and len(corners) < 4:
-        # Convert back to original image coordinates
         orig_x = int(x * scale_x)
         orig_y = int(y * scale_y)
 

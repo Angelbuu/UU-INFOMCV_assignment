@@ -28,7 +28,7 @@ def live_drawing(mtx, dist):
             draw_cube(frame, mtx, dist, rvec, tvec)
             draw_polygon(frame, mtx, dist, rvec, tvec)
 
-        cv.imshow('INFOMCV Real-Time AR', frame)
+        cv.imshow('img', frame)
         if cv.waitKey(1) & 0xFF == ord('q'):
             break
 
