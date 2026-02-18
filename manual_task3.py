@@ -1,8 +1,6 @@
 import cv2 as cv
 import numpy as np
 
-DST_SIZE = 800 
-
 objp = np.zeros((9 * 6, 3), np.float32)
 objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
 
@@ -26,16 +24,17 @@ def get_warped_points(img_path):
         if event == cv.EVENT_LBUTTONDOWN:
             clicked_pts.append([x, y])
             cv.circle(display_img, (x, y), 20, (0, 255, 0), -1)
-            cv.imshow("Choice Task 3: Manual Warp", display_img)
+            cv.imshow("img", display_img)
 
-    cv.namedWindow("Choice Task 3: Manual Warp", cv.WINDOW_NORMAL)
-    cv.setMouseCallback("Choice Task 3: Manual Warp", mouse_callback)
-    cv.imshow("Choice Task 3: Manual Warp", display_img)
+    cv.namedWindow("img", cv.WINDOW_NORMAL)
+    cv.setMouseCallback("img", mouse_callback)
+    cv.imshow("img", display_img)
     
     while len(clicked_pts) < 4:
         cv.waitKey(1)
     cv.destroyAllWindows()
 
+    DST_SIZE = 800
     src = np.float32(clicked_pts)
     dst = np.float32([[0, 0], [DST_SIZE, 0], [DST_SIZE, DST_SIZE], [0, DST_SIZE]])
     
