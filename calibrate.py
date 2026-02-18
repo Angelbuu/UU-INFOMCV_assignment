@@ -83,4 +83,3 @@ run3_img = img_auto[:5]
 mtx3, dist3 = run_calibration_experiment(run3_obj, run3_img, "Run 3", reject_bad_images=False)
 
 np.savez('final_calibration_results.npz', mtx=np.array([mtx1, mtx2, mtx3]), dist=np.array([dist1, dist2, dist3]))
-print("\n All 3 runs completed and saved with Choice Task 2 rejection.")

@@ -55,4 +55,3 @@ cv.destroyAllWindows()
 
 if len(objpoints) > 0:
     np.savez('B.npz', objpoints=objpoints, imgpoints=imgpoints)
-    print(f"\nCaptured points for {len(objpoints)} images and saved to B_points.npz.")
