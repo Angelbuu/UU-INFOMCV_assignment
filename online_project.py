@@ -7,16 +7,10 @@ def live_drawing(mtx, dist):
     """Performs the online phase live."""
     cap = cv.VideoCapture(0)
 
-<<<<<<< HEAD
-axis = np.float32([[3,0,0], [0,3,0], [0,0,-3]]).reshape(-1,3) * SQUARE_SIZE_MM
-cube = np.float32([[0,0,0], [2,0,0], [2,2,0], [0,2,0],
-                   [0,0,-2], [2,0,-2], [2,2,-2], [0,2,-2]]) * SQUARE_SIZE_MM
-=======
     while True:
         ret, frame = cap.read()
         if not ret:
             break
->>>>>>> ae334913210b704c2c49c73f8400aed363882554
 
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
@@ -41,15 +35,6 @@ cube = np.float32([[0,0,0], [2,0,0], [2,2,0], [0,2,0],
     cap.release()
     cv.destroyAllWindows()
 
-<<<<<<< HEAD
-        # DRAWING
-        # 1. Axes
-        origin = tuple(np.int32(corners2[0].ravel()))
-        frame = cv.line(frame, origin, tuple(np.int32(imgpts_axis[0].ravel())), (0,0,255), 5)
-        frame = cv.line(frame, origin, tuple(np.int32(imgpts_axis[1].ravel())), (0,255,0), 5)
-        frame = cv.line(frame, origin, tuple(np.int32(imgpts_axis[2].ravel())), (255,0,0), 5)
-=======
->>>>>>> ae334913210b704c2c49c73f8400aed363882554
 
 def main():
     """Loads calibration results and performs the online phase live."""
