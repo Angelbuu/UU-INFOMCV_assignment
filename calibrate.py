@@ -12,7 +12,7 @@ except FileNotFoundError:
 
 # Load your partner's 5 manual detections
 try:
-    manual_data = np.load('F_task3.npz')
+    manual_data = np.load('F.npz')
     obj_manual = list(manual_data['objpoints'])
     img_manual = list(manual_data['imgpoints'])
 except FileNotFoundError:
@@ -22,7 +22,7 @@ except FileNotFoundError:
 img_size = (4284, 5712)
 
 
-def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.2):
+def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.1):
     if len(op) == 1:
         return base_rms, mtx, dist, rvecs, tvecs
     lowest_rms = np.inf
@@ -59,7 +59,7 @@ def run_calibration_experiment(op, ip, run_name, reject_bad_images=True): # Defa
     # Choice Task 2: Iterative rejection
     if reject_bad_images:
         # We use a threshold of 1.0 pixels to filter out noisy manual clicks
-        ret, mtx, dist, rvecs, tvecs = reject_bad_image(op, ip, ret, mtx, dist, rvecs, tvecs, epsilon=0.1)
+        ret, mtx, dist, rvecs, tvecs = reject_bad_image(op, ip, ret, mtx, dist, rvecs, tvecs)
     
     print(f"\n--- {run_name} Results ---")
     print(f"Final Reprojection Error (RMS): {ret:.5f} pixels")
@@ -76,17 +76,17 @@ def run_calibration_experiment(op, ip, run_name, reject_bad_images=True): # Defa
 # --- RUN 1: Full Dataset (25 imgs) ---
 run1_obj = obj_auto + obj_manual
 run1_img = img_auto + img_manual
-mtx1, dist1 = run_calibration_experiment(run1_obj, run1_img, "Run 1", reject_bad_images=True)
+mtx1, dist1 = run_calibration_experiment(run1_obj, run1_img, "Run 1", reject_bad_images=False)
 
 # --- RUN 2: Balanced subset (10 imgs) ---
 run2_obj = obj_auto[:5] + obj_manual
 run2_img = img_auto[:5] + img_manual
-mtx2, dist2 = run_calibration_experiment(run2_obj, run2_img, "Run 2", reject_bad_images=True)
+mtx2, dist2 = run_calibration_experiment(run2_obj, run2_img, "Run 2", reject_bad_images=False)
 
 # --- RUN 3: Minimum subset (5 imgs) ---
 run3_obj = obj_auto[:5]
 run3_img = img_auto[:5]
-mtx3, dist3 = run_calibration_experiment(run3_obj, run3_img, "Run 3", reject_bad_images=True)
+mtx3, dist3 = run_calibration_experiment(run3_obj, run3_img, "Run 3", reject_bad_images=False)
 
 # Save the final "clean" matrices for the Online Phase
 np.savez('final_calibration_results.npz', mtx=np.array([mtx1, mtx2, mtx3]), dist=np.array([dist1, dist2, dist3]))
