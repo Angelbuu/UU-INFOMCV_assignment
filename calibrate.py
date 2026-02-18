@@ -1,7 +1,6 @@
 import numpy as np
 import cv2 as cv
 
-# LOAD THE DATA
 try:
     auto_data = np.load('B.npz') 
     obj_auto = list(auto_data['objpoints'])
@@ -16,7 +15,7 @@ try:
 except FileNotFoundError:
     print("Error: F.npz not found.")
 
-# Standard image resolution (Width, Height)
+
 img_size = (4284, 5712)
 
 
@@ -47,7 +46,7 @@ def reject_bad_image(op, ip, base_rms, mtx, dist, rvecs, tvecs, epsilon=0.1):
                                 lowest_rms, mtx, dist, rvecs, tvecs, epsilon)
 
 
-# CALIBRATION FUNCTION
+
 def run_calibration_experiment(op, ip, run_name, reject_bad_images=True):
     """
     Performs calibration and implements Choice Task 2: 
@@ -67,7 +66,6 @@ def run_calibration_experiment(op, ip, run_name, reject_bad_images=True):
     
     return mtx, dist
 
-# EXECUTE THE THREE RUNS
 
 # RUN 1: Full Dataset (25 imgs) 
 run1_obj = obj_auto + obj_manual
