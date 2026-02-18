@@ -123,7 +123,7 @@ def run(objp, corners, mtx, dist, img, scale=0.1):
 
 def main(new_image=True):
     """Loads the test image and performs the online phase for 3 different calibration runs."""
-    test_image = glob.glob('images/success/IMG_5919.jpg')
+    test_image = glob.glob('images/test_image.jpg')
     camera_params = np.load('final_calibration_results.npz')
     img = cv.imread(test_image[0])
     img = resize_image(img)
