@@ -12,8 +12,6 @@ os.makedirs('images/fail', exist_ok=True)
 standard_size = (4284, 5712) 
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-# Prepare object points (3D real world space)
-# Each square is 20mm (2cm) [cite: 1]
 objp = np.zeros((9*6,3), np.float32)
 objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2) * 20
 
