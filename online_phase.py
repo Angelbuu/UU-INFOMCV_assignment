@@ -1,138 +1,120 @@
 import numpy as np
 import cv2 as cv
-import glob
+import os
 
+# --- 1. CONFIGURATION ---
+# Must match your Offline Phase settings
+SQUARE_SIZE_MM = 20  
+STANDARD_RES = (4284, 5712)
 
-def prepare_object_and_image_points(img):
+def get_hsv_color(distance_m, angle_deg):
+    """
+    Assignment requirements:
+    - Intensity (V): 255 at 0m, 0 at 4m+ (linear scale)
+    - Hue (H): Max at parallel (0°), 0 at 45°+ (linear scale)
+    - Saturation (S): Constant at 255
+    """
+    # V (Intensity): 255 at 0m, 0 at 4m+
+    v = np.clip(255 * (1 - distance_m / 4.0), 0, 255)
+    
+    # H (Hue): Max (179 in OpenCV) at parallel, 0 at 45°+
+    h = np.clip(179 * (1 - angle_deg / 45.0), 0, 179)
+    
+    # S (Saturation): Constant 255 per assignment
+    s = 255
+    
+    hsv_pixel = np.uint8([[[h, s, v]]])
+    bgr_pixel = cv.cvtColor(hsv_pixel, cv.COLOR_HSV2BGR)[0][0]
+    return tuple(int(x) for x in bgr_pixel)
+
+def process_and_draw(image_path, mtx, dist, run_index):
+    img = cv.imread(image_path)
+    if img is None:
+        print(f"Error: Could not read {image_path}")
+        return
+
+    # 1. Standardize resolution to match calibration
+    img = cv.resize(img, STANDARD_RES)
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-
+    
+    # 2. Find Corners on Test Image 
     ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
+    if not ret:
+        print(f"Run {run_index+1}: Chessboard not found in test image.")
+        return
 
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
 
-    cv.drawChessboardCorners(img, (9, 6), corners2, ret)
-
+    # 3. Pose Estimation (Extrinsics) 
     objp = np.zeros((9 * 6, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * 20
+    objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2) * SQUARE_SIZE_MM
+    _, rvec, tvec = cv.solvePnP(objp, corners2, mtx, dist)
 
-    return objp, corners2
+    # 4. Define 3D Objects at Origin (0,0,0) 
+    # Axes lines
+    axis_3d = np.float32([[3,0,0], [0,3,0], [0,0,-3]]).reshape(-1,3) * SQUARE_SIZE_MM
+    # Cube (2x2 squares wide/high)
+    cube_3d = np.float32([[0,0,0], [40,0,0], [40,40,0], [0,40,0],
+                          [0,0,-40], [40,0,-40], [40,40,-40], [0,40,-40]])
 
+    # Project to 2D
+    imgpts_axes, _ = cv.projectPoints(axis_3d, rvec, tvec, mtx, dist)
+    imgpts_cube, _ = cv.projectPoints(cube_3d, rvec, tvec, mtx, dist)
+    imgpts_cube = np.int32(imgpts_cube).reshape(-1, 2)
 
-def project_points(points, r_vec, t_vec, mtx, dist):
-    projected_points, _ = cv.projectPoints(points, r_vec, t_vec, mtx, dist)
-    return np.int32(projected_points).reshape(-1, 2)
+    # 5. Calculation for Top Plane 
+    # Center of top plane in camera coordinates
+    center_3d_world = np.array([[20.0, 20.0, -40.0]], dtype=np.float32)
+    R, _ = cv.Rodrigues(rvec)
+    center_cam = R @ center_3d_world.T + tvec
+    dist_m = np.linalg.norm(center_cam) / 1000.0 # Convert mm to m
 
+    # Orientation Angle (Normal vs Camera Z-axis)
+    normal_cam = R @ np.array([0, 0, -1])
+    angle_deg = np.degrees(np.arccos(np.clip(np.abs(normal_cam[2]), 0, 1)))
 
-def draw_axes(img, mtx, dist, r_vec, t_vec, axis_length=90, line_thickness=20):
-    axes_points = np.float32([
-        [0, 0, 0],
-        [axis_length, 0, 0],
-        [0, axis_length, 0],
-        [0, 0, -axis_length]
-    ])
-    proj_axes_points = project_points(axes_points, r_vec, t_vec, mtx, dist)
+    # 6. DRAWING
+    # Axes: Red=X, Green=Y, Blue=Z 
+    origin = tuple(np.int32(corners2[0].ravel()))
+    img = cv.line(img, origin, tuple(np.int32(imgpts_axes[0].ravel())), (0,0,255), 15)
+    img = cv.line(img, origin, tuple(np.int32(imgpts_axes[1].ravel())), (0,255,0), 15)
+    img = cv.line(img, origin, tuple(np.int32(imgpts_axes[2].ravel())), (255,0,0), 15)
 
-    cv.line(img, proj_axes_points[0], proj_axes_points[1], (0, 0, 255), line_thickness)
-    cv.line(img, proj_axes_points[0], proj_axes_points[2], (0, 255, 0), line_thickness)
-    cv.line(img, proj_axes_points[0], proj_axes_points[3], (255, 0, 0), line_thickness)
+    # Cube Edges
+    cv.drawContours(img, [imgpts_cube[:4]], -1, (255,255,255), 5)
+    for i, j in zip(range(4), range(4,8)):
+        cv.line(img, tuple(imgpts_cube[i]), tuple(imgpts_cube[j]), (255,255,255), 5)
 
+    # Colored Top Plane 
+    color_bgr = get_hsv_color(dist_m, angle_deg)
+    cv.fillConvexPoly(img, imgpts_cube[4:], color_bgr)
+    
+    # Center Dot and Distance Text 
+    center_2d, _ = cv.projectPoints(center_3d_world, rvec, tvec, mtx, dist)
+    center_px = tuple(np.int32(center_2d.ravel()))
+    cv.circle(img, center_px, 20, (255, 255, 255), -1)
+    cv.putText(img, f"{dist_m:.2f}m", center_px, cv.FONT_HERSHEY_SIMPLEX, 3, (255,255,255), 5)
 
-def draw_cube(img, mtx, dist, r_vec, t_vec, edge_length=40, color=(120, 0, 120), line_thickness=10):
-    cube_points = np.float32([
-        [0, 0, 0],
-        [edge_length, 0, 0],
-        [edge_length, edge_length, 0],
-        [0, edge_length, 0],
-        [0, 0, -edge_length],
-        [edge_length, 0, -edge_length],
-        [edge_length, edge_length, -edge_length],
-        [0, edge_length, -edge_length],
-    ])
-    proj_cube_points = project_points(cube_points, r_vec, t_vec, mtx, dist)
+    # Save final result
+    out_name = f"result_run_{run_index + 1}_ct3.jpg"
+    cv.imwrite(out_name, img)
+    print(f"Saved {out_name}: Distance={dist_m:.2f}m, Angle={angle_deg:.1f}deg")
 
-    cv.polylines(img, [proj_cube_points[:4]], True, color, line_thickness)
-    cv.polylines(img, [proj_cube_points[4:]], True, color, line_thickness)
-    for i in range(4):
-        cv.line(img, proj_cube_points[i], proj_cube_points[i+4], color, line_thickness)
+def main():
+    test_img_path = 'images/test_image.jpg' # Make sure your best tilted image is here!
+    calib_file = 'final_calibration_results.npz'
 
+    if not os.path.exists(calib_file):
+        print(f"Error: {calib_file} not found.")
+        return
 
-def draw_polygon(img, mtx, dist, r_vec, t_vec, edge_length=40):
-    polygon_points = np.float32([
-        [0, 0, -edge_length],
-        [edge_length, 0, -edge_length],
-        [edge_length, edge_length, -edge_length],
-        [0, edge_length, -edge_length],
-        [edge_length/2, edge_length/2, -edge_length]
-    ])
-    proj_polygon_points = project_points(polygon_points, r_vec, t_vec, mtx, dist)
-
-    r_matrix, _ = cv.Rodrigues(r_vec)
-    print(r_matrix)
-    print(t_vec)
-    print(polygon_points[4])
-
-    center_point_w = polygon_points[4].reshape(3, 1)
-    print(center_point_w)
-
-    center_point_c = r_matrix @ center_point_w + t_vec
-    print(center_point_c)
-
-    distance_to_camera = np.linalg.norm(center_point_c) / 1000
-    print(distance_to_camera)
-
-    normal_world = np.array([0, 0, -1])
-    np.reshape(normal_world, (3, 1))
-    normal_cam = r_matrix @ normal_world
-    normal_cam = normal_cam.flatten()
-    cos_theta = abs(np.dot(normal_cam, np.array([0, 0, 1])))
-    cos_theta = np.clip(cos_theta, -1.0, 1.0)
-    theta = np.degrees(np.arccos(cos_theta))
-    print(proj_polygon_points[4])
-    print('Theta:', theta)
-
-    intensity = 0 if distance_to_camera >= 4 else (4 - distance_to_camera) / 4 * 255
-    hue = 0 if theta >= 45 else (45 - theta) / 45 * 179
-    saturation = 255
-
-    hsv_polygon_color = np.uint8([[[hue, saturation, intensity]]])
-    rgb_polygon_color = cv.cvtColor(hsv_polygon_color, cv.COLOR_HSV2BGR)[0][0]
-    rgb_polygon_color = tuple(int(x) for x in rgb_polygon_color)
-    print(rgb_polygon_color)
-    cv.fillConvexPoly(img, proj_polygon_points[:4], rgb_polygon_color)
-    cv.circle(img, proj_polygon_points[4], 5, (255, 255, 255), 20)
-    cv.putText(img, f'{distance_to_camera:.3f}',
-               (proj_polygon_points[4][0], proj_polygon_points[4][1]),
-               cv.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 255), 5)
-
-
-def run(objp, corners, mtx, dist, img, scale=0.2):
-    ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
-
-    draw_axes(img, mtx, dist, r_vec, t_vec)
-    draw_cube(img, mtx, dist, r_vec, t_vec)
-    draw_polygon(img, mtx, dist, r_vec, t_vec)
-
-    display_img = cv.resize(img, None, fx=scale, fy=scale)
-    cv.imshow('img', display_img)
-    cv.waitKey(0)
-
-    cv.destroyAllWindows()
-
-
-def main(new_image=True):
-    test_image = glob.glob('images/success/IMG_5954.jpg')
-    camera_params = np.load('final_calibration_results.npz')
-    print(camera_params)
-    print('K:', camera_params['mtx'][0])
-    img = cv.imread(test_image[0])
-    objp, corners = prepare_object_and_image_points(img)
+    data = np.load(calib_file)
+    
+    # Process all three runs stored in your .npz
     for i in range(3):
-        if new_image:
-            img = cv.imread(test_image[0])
-            objp, corners = prepare_object_and_image_points(img)
-        run(objp, corners, camera_params['mtx'][i], camera_params['dist'][i], img)
+        print(f"Processing Run {i+1}...")
+        process_and_draw(test_img_path, data['mtx'][i], data['dist'][i], i)
 
-
-if __name__ == '__main__':
-    main(True)
+if __name__ == "__main__":
+    main()
