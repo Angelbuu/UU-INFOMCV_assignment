@@ -122,7 +122,6 @@ def main():
         img = cv.imread(fname)
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-        # Find the chess board corners
         ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
 
         if not ret:
