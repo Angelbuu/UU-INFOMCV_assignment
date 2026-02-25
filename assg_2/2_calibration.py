@@ -1,6 +1,8 @@
 import cv2 as cv
 import numpy as np
 from assg_1.calibrate import run_calibration_experiment
+from assg_1.manual_corner_selection import find_corners_manually
+from assg_1.online_phase import draw_axes
 
 
 def prepare_object_points():
@@ -10,7 +12,7 @@ def prepare_object_points():
     return objp
 
 
-def calculate_intrinsics(video, video_num, skip_frames=10):
+def calculate_intrinsics(video, video_num, skip_frames=50):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
     objp = prepare_object_points()
@@ -47,21 +49,32 @@ def calculate_intrinsics(video, video_num, skip_frames=10):
 
 def calculate_extrinsics(video, mtx, dist):
     objp = prepare_object_points()
-    corners = None
+
+    _, frame = video.read()
+    width = frame.shape[1]
+    print(width)
+    _, corners = find_corners_manually(frame, (8, 6), 3000)
+
     ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
+    print(r_vec, t_vec)
+    draw_axes(frame, mtx, dist, r_vec, t_vec, 400, 2)
+    cv.imshow('img', frame)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
     return r_vec, t_vec
 
 
 def main():
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
+    cameras = ['cam1']
     for camera in cameras:
         print(f'\nCalibrating {camera}')
         path = 'data/' + camera
         video = cv.VideoCapture(path + '/intrinsics.avi')
-        mtx, dist = calculate_intrinsics(video, camera, skip_frames=50)
+        mtx, dist = calculate_intrinsics(video, camera, skip_frames=90)
 
         video = cv.VideoCapture(path + '/checkerboard.avi')
-        # r_vec, t_vec = calculate_extrinsics(video, mtx, dist)
+        r_vec, t_vec = calculate_extrinsics(video, mtx, dist)
 
 
 if __name__ == '__main__':
