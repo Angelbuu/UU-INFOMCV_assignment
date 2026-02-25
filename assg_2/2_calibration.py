@@ -3,7 +3,9 @@ import numpy as np
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
+sys.path.insert(0, os.path.join(SCRIPT_DIR, '..'))
 from assg_1.calibrate import run_calibration_experiment
 from assg_1.manual_corner_selection import find_corners_manually
 from assg_1.online_phase import draw_axes
@@ -79,7 +81,7 @@ def calculate_extrinsics(video, mtx, dist):
 
 
 def save_calibration(camera_id, mtx, dist):
-    file_path = f'data/{camera_id}/intrinsics.xml'
+    file_path = os.path.join(DATA_DIR, camera_id, 'intrinsics.xml')
     fs = cv.FileStorage(file_path, cv.FILE_STORAGE_WRITE)
     fs.write('camera_matrix', mtx)
     fs.write('distortion_coefficients', dist)
@@ -91,8 +93,8 @@ def main():
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     for camera in cameras:
         print(f'\nCalibrating {camera}')
-        path = f'data/{camera}'
-        video = cv.VideoCapture(path + '/intrinsics.avi')
+        cam_dir = os.path.join(DATA_DIR, camera)
+        video = cv.VideoCapture(os.path.join(cam_dir, 'intrinsics.avi'))
         mtx, dist = calculate_intrinsics(video, camera, skip_frames=50)
         
         if mtx is not None:
@@ -100,7 +102,7 @@ def main():
             
         video.release()
 
-        video = cv.VideoCapture(path + '/checkerboard.avi')
+        video = cv.VideoCapture(os.path.join(cam_dir, 'checkerboard.avi'))
         if video.isOpened() and mtx is not None:
             r_vec, t_vec = calculate_extrinsics(video, mtx, dist)
         video.release()
