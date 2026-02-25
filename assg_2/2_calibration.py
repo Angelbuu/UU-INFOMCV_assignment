@@ -1,17 +1,19 @@
 import cv2 as cv
 import numpy as np
-from calibrate import run_calibration_experiment
-from online_phase import prepare_object_and_image_points
+from assg_1.calibrate import run_calibration_experiment
 
 
-SHAPE = (8 * 6)  # or  6 * 8 ???
+def prepare_object_points():
+    # SHAPE = (8 * 6) or 6 * 8 ???
+    objp = np.zeros((8 * 6, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:8, 0:6].T.reshape(-1, 2) * 115
+    return objp
 
 
 def calculate_intrinsics(video, video_num, skip_frames=10):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-    objp = np.zeros((8 * 6, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:8, 0:6].T.reshape(-1, 2) * 115
+    objp = prepare_object_points()
 
     objpoints = []
     imgpoints = []
@@ -43,9 +45,11 @@ def calculate_intrinsics(video, video_num, skip_frames=10):
     return run_calibration_experiment(objpoints, imgpoints, img_size, f'Video {video_num}', reject_bad_images=False)
 
 
-def calculate_extrinsics(img):
-
+def calculate_extrinsics(video, mtx, dist):
+    objp = prepare_object_points()
+    corners = None
     ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
+    return r_vec, t_vec
 
 
 def main():
@@ -55,7 +59,9 @@ def main():
         path = 'data/' + camera
         video = cv.VideoCapture(path + '/intrinsics.avi')
         mtx, dist = calculate_intrinsics(video, camera, skip_frames=50)
-        calculate_extrinsics()
+
+        video = cv.VideoCapture(path + '/checkerboard.avi')
+        # r_vec, t_vec = calculate_extrinsics(video, mtx, dist)
 
 
 if __name__ == '__main__':
