@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 import glob
-from preprocessing import resize_image
+from .preprocessing import resize_image
 
 
 def prepare_object_and_image_points(img):
