@@ -1,12 +1,13 @@
 import cv2 as cv
 import numpy as np
 from calibrate import run_calibration_experiment
+from online_phase import prepare_object_and_image_points
 
 
 SHAPE = (8 * 6)  # or  6 * 8 ???
 
 
-def calibrate_intrinsics(video, video_num, skip_frames=10):
+def calculate_intrinsics(video, video_num, skip_frames=10):
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
     objp = np.zeros((8 * 6, 3), np.float32)
@@ -39,16 +40,22 @@ def calibrate_intrinsics(video, video_num, skip_frames=10):
     print('All frames:', num_frames)
     print('Frames to be used for calibration:', len(imgpoints))
 
-    run_calibration_experiment(objpoints, imgpoints, img_size, f'Video {video_num}', reject_bad_images=False)
+    return run_calibration_experiment(objpoints, imgpoints, img_size, f'Video {video_num}', reject_bad_images=False)
+
+
+def calculate_extrinsics(img):
+
+    ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
 
 
 def main():
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     for camera in cameras:
         print(f'\nCalibrating {camera}')
-        path = f'data/{camera}/intrinsics.avi'
-        video = cv.VideoCapture(path)
-        calibrate_intrinsics(video, camera, skip_frames=50)
+        path = 'data/' + camera
+        video = cv.VideoCapture(path + '/intrinsics.avi')
+        mtx, dist = calculate_intrinsics(video, camera, skip_frames=50)
+        calculate_extrinsics()
 
 
 if __name__ == '__main__':
