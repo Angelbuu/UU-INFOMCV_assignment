@@ -17,7 +17,7 @@ def calibrate_intrinsics(video, video_num, skip_frames=10):
 
     ret, frame = video.read()
     img_size = frame.shape[::-1][1:]
-    print('\nImage size:', img_size)
+    print('Image size:', img_size)
     num_frames = 1
     while True:
         ret, frame = video.read()
@@ -45,7 +45,7 @@ def calibrate_intrinsics(video, video_num, skip_frames=10):
 def main():
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     for camera in cameras:
-        print(f'Calibrating {camera}')
+        print(f'\nCalibrating {camera}')
         path = f'data/{camera}/intrinsics.avi'
         video = cv.VideoCapture(path)
         calibrate_intrinsics(video, camera, skip_frames=50)
