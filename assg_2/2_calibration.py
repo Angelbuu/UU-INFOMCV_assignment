@@ -94,8 +94,7 @@ def main():
         r_vec, t_vec = calculate_extrinsics(video, mtx, dist)
         video.release()
 
-        if mtx is not None:
-            save_calibration(camera, mtx, dist, r_vec, t_vec)
+        save_calibration(camera, mtx, dist, r_vec, t_vec)
 
 
 if __name__ == '__main__':
