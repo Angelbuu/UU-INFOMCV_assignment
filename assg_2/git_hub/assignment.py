@@ -29,7 +29,7 @@ def set_voxel_positions(width, height, depth):
 
         # Convert grid coordinates to world coordinates
         world_x = x * block_size - width / 2
-        world_y = z * block_size
+        world_y = -z * block_size
         world_z = y * block_size - depth / 2
 
         data.append([world_x, world_y, world_z])
@@ -85,3 +85,7 @@ def get_cam_rotation_matrices():
         cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1] * np.pi / 180, [0, 1, 0])
         cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2] * np.pi / 180, [0, 0, 1])
     return cam_rotations
+
+
+if __name__ == '__main__':
+    print(get_cam_positions()[0])

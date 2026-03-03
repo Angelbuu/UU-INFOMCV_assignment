@@ -34,7 +34,8 @@ def voxel_reconstruction(lookup_table, views):
                 # print('Foreground')
 
         if visible_from_all:
-            visible_voxels.append(list(voxel))
+            output_voxel = [int(x) // 100 for x in voxel]
+            visible_voxels.append(output_voxel)
 
     return visible_voxels
 
@@ -78,4 +79,5 @@ def main(skip_frames=100):
 
 
 if __name__ == '__main__':
-    main()
+    visible_voxels = main()
+    print(visible_voxels)
