@@ -16,7 +16,6 @@ def load_camera_params(file):
 
 def create_lookup_table(cameras, space_size=2000.0, voxel_size=20.0):
     voxels_x = np.arange(-space_size / 100, space_size / 2, voxel_size)
-    print(voxels_x)
     voxels_y = np.arange(-space_size / 100, space_size / 2, voxel_size)
     voxels_z = np.arange(-space_size, 0, voxel_size)
 

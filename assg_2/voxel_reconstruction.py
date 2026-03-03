@@ -5,7 +5,7 @@ from assg_1.online_phase import draw_axes
 from assg_2.create_lookup_table import load_camera_params
 
 
-def voxel_reconstruction(lookup_table, views):
+def find_visible_voxels(lookup_table, views):
     height, width = views[0].shape[:2]
     visible_voxels = []
 
@@ -16,25 +16,18 @@ def voxel_reconstruction(lookup_table, views):
         for camera, projected_point in projections.items():
 
             u, v = projected_point[0]
-            # print('2d image point:', u, v)
 
             # Convert to integer pixel coords
-            u = int(round(u))
-            v = int(round(v))
+            # u = int(round(u))
+            # v = int(round(v))
 
-            # Check if inside image bounds
             if not (0 <= u < width and 0 <= v < height):
                 visible_from_all = False
                 break
 
-            # Check if pixel is foreground
-            # print(frames[camera][v, u])
             if views[camera][v, u].all() == 0:
                 visible_from_all = False
                 break
-            else:
-                pass
-                # print('Foreground')
 
         if visible_from_all:
             visible_voxels.append(voxel)
@@ -42,7 +35,7 @@ def voxel_reconstruction(lookup_table, views):
     return visible_voxels
 
 
-def main(skip_frames=100, base_dir='data/'):
+def voxel_reconstruction(skip_frames=4, base_dir='data/'):
     file = '/foreground_output/foreground.avi'
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     videos = []
@@ -62,16 +55,13 @@ def main(skip_frames=100, base_dir='data/'):
             if not ret:
                 break
             views.append(frame)
-            frames += 1
+        frames += 1
 
         if not ret:
             break
 
         if frames % skip_frames == 0:
-            visible_voxels = voxel_reconstruction(lookup_table, views)
-            break
-        # print(visible_voxels)
-        # visualize 3d model
+            visible_voxels = find_visible_voxels(lookup_table, views)
 
     for video in videos:
         video.release()
@@ -80,16 +70,16 @@ def main(skip_frames=100, base_dir='data/'):
     return visible_voxels
 
 
-def test():
+def test_world_origin():
     video = cv.VideoCapture('data/cam1/video.avi')
     ret, frame = video.read()
     mtx, dist, r_vec, t_vec = load_camera_params(cv.FileStorage('data/cam1/config.xml', cv.FILE_STORAGE_READ))
-    draw_axes(frame, mtx, dist, r_vec, t_vec)
+    draw_axes(frame, mtx, dist, r_vec, t_vec, 1000, 2)
     cv.imshow('img', frame)
     cv.waitKey(0)
     cv.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    visible_voxels = main()
-    print(visible_voxels)
+    test_world_origin()
+    voxel_reconstruction()
