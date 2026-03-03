@@ -37,8 +37,7 @@ def voxel_reconstruction(lookup_table, views):
                 # print('Foreground')
 
         if visible_from_all:
-            output_voxel = [int(x) // 20 for x in voxel]
-            visible_voxels.append(output_voxel)
+            visible_voxels.append(voxel)
 
     return visible_voxels
 

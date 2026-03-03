@@ -6,6 +6,7 @@ from assg_2.voxel_reconstruction import main
 from assg_2.create_lookup_table import load_camera_params
 
 block_size = 1.0
+SCALE = 20
 
 
 def generate_grid(width, depth):
@@ -27,18 +28,16 @@ def set_voxel_positions(width, height, depth):
     for voxel in visible_voxels:
         x, y, z = voxel
 
-        # Convert grid coordinates to world coordinates
-        world_x = x * block_size
-        world_y = -z * block_size
-        world_z = y * block_size
+        world_x = int(x) // SCALE * block_size
+        world_y = int(-z) // SCALE * block_size
+        world_z = int(y) // SCALE * block_size
 
         data.append([world_x, world_y, world_z])
 
-        # Simple coloring scheme (same as before)
         colors.append([
-            x / width,
-            z / depth,
-            y / height
+            world_x / width,
+            -world_y / height,
+            world_z / depth,
         ])
     # for x in range(width):
     #     for y in range(height):
@@ -47,14 +46,10 @@ def set_voxel_positions(width, height, depth):
     #             if random.randint(0, 1000) < 5:
     #                 data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
     #                 colors.append([x / width, z / depth, y / height])
-    print('Voxels displayed')
-    print(data)
     return data, colors
 
 
 def get_cam_positions():
-    # Generates dummy camera locations at the 4 corners of the room
-    # TODO: You need to input the estimated locations of the 4 cameras in the world coordinates.
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     camera_coords = []
     for camera in cam_names:
@@ -62,18 +57,15 @@ def get_cam_positions():
         _, _, r_vec, t_vec = load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ))
         r_matrix, _ = cv.Rodrigues(r_vec)
         camera_pos = -r_matrix.T @ t_vec
-        camera_coords.append(camera_pos.flatten().tolist())
+        camera_pos = camera_pos.flatten().tolist()
+        camera_pos = [coord // SCALE for coord in camera_pos]
+        camera_coords.append(camera_pos)
 
-    return [[camera_coords[0][0] // 10, -camera_coords[0][2] // 10, camera_coords[0][1] // 10],
-            [camera_coords[1][0] // 10, -camera_coords[1][2] // 10, camera_coords[1][1] // 10],
-            [camera_coords[2][0] // 10, -camera_coords[2][2] // 10, camera_coords[2][1] // 10],
-            [camera_coords[3][0] // 10, -camera_coords[3][2] // 10, camera_coords[3][1] // 10]], \
+    return [[camera_coords[0][0], -camera_coords[0][2], camera_coords[0][1]],
+            [camera_coords[1][0], -camera_coords[1][2], camera_coords[1][1]],
+            [camera_coords[2][0], -camera_coords[2][2], camera_coords[2][1]],
+            [camera_coords[3][0], -camera_coords[3][2], camera_coords[3][1]]], \
         [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
-    # return [[-64 * block_size, 64 * block_size, 63 * block_size],
-    #         [63 * block_size, 64 * block_size, 63 * block_size],
-    #         [63 * block_size, 64 * block_size, -64 * block_size],
-    #         [-64 * block_size, 64 * block_size, -64 * block_size]], \
-    #     [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
 
 
 def get_cam_rotation_matrices():
