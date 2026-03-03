@@ -1,7 +1,7 @@
 import glm
 import random
 import numpy as np
-from ..voxel_reconstruction import main
+from assg_2.voxel_reconstruction import main
 
 block_size = 1.0
 
@@ -45,6 +45,7 @@ def set_voxel_positions(width, height, depth):
     #             if random.randint(0, 1000) < 5:
     #                 data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
     #                 colors.append([x / width, z / depth, y / height])
+    print('Voxels displayed')
     return data, colors
 
 
