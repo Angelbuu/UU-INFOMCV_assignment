@@ -1,6 +1,9 @@
 import cv2 as cv
 import numpy as np
 
+from assg_1.online_phase import draw_axes
+from assg_2.create_lookup_table import load_camera_params
+
 
 def voxel_reconstruction(lookup_table, views):
     height, width = views[0].shape[:2]
@@ -76,6 +79,16 @@ def main(skip_frames=100, base_dir='data/'):
 
     print(frames)
     return visible_voxels
+
+
+def test():
+    video = cv.VideoCapture('data/cam1/video.avi')
+    ret, frame = video.read()
+    mtx, dist, r_vec, t_vec = load_camera_params(cv.FileStorage('data/cam1/config.xml', cv.FILE_STORAGE_READ))
+    draw_axes(frame, mtx, dist, r_vec, t_vec)
+    cv.imshow('img', frame)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
 
 if __name__ == '__main__':

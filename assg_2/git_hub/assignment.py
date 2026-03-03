@@ -64,10 +64,10 @@ def get_cam_positions():
         camera_pos = -r_matrix.T @ t_vec
         camera_coords.append(camera_pos.flatten().tolist())
 
-    return [camera_coords[0],
-            camera_coords[1],
-            camera_coords[2],
-            camera_coords[3]], \
+    return [[camera_coords[0][0] // 10, -camera_coords[0][2] // 10, camera_coords[0][1] // 10],
+            [camera_coords[1][0] // 10, -camera_coords[1][2] // 10, camera_coords[1][1] // 10],
+            [camera_coords[2][0] // 10, -camera_coords[2][2] // 10, camera_coords[2][1] // 10],
+            [camera_coords[3][0] // 10, -camera_coords[3][2] // 10, camera_coords[3][1] // 10]], \
         [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
     # return [[-64 * block_size, 64 * block_size, 63 * block_size],
     #         [63 * block_size, 64 * block_size, 63 * block_size],
