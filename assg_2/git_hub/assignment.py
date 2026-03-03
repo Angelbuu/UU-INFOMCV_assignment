@@ -1,7 +1,9 @@
 import glm
 import random
 import numpy as np
+import cv2 as cv
 from assg_2.voxel_reconstruction import main
+from assg_2.create_lookup_table import load_camera_params
 
 block_size = 1.0
 
@@ -27,8 +29,8 @@ def set_voxel_positions(width, height, depth):
 
         # Convert grid coordinates to world coordinates
         world_x = x * block_size - width / 2
-        world_y = y * block_size
-        world_z = z * block_size - depth / 2
+        world_y = z * block_size
+        world_z = y * block_size - depth / 2
 
         data.append([world_x, world_y, world_z])
 
@@ -52,11 +54,25 @@ def set_voxel_positions(width, height, depth):
 def get_cam_positions():
     # Generates dummy camera locations at the 4 corners of the room
     # TODO: You need to input the estimated locations of the 4 cameras in the world coordinates.
-    return [[-64 * block_size, 64 * block_size, 63 * block_size],
-            [63 * block_size, 64 * block_size, 63 * block_size],
-            [63 * block_size, 64 * block_size, -64 * block_size],
-            [-64 * block_size, 64 * block_size, -64 * block_size]], \
+    cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
+    camera_coords = []
+    for camera in cam_names:
+        cam_params_file = 'data/' + camera + '/config.xml'
+        _, _, r_vec, t_vec = load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ))
+        r_matrix, _ = cv.Rodrigues(r_vec)
+        camera_pos = -r_matrix.T @ t_vec
+        camera_coords.append(camera_pos.flatten().tolist())
+
+    return [camera_coords[0],
+            camera_coords[1],
+            camera_coords[2],
+            camera_coords[3]], \
         [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
+    # return [[-64 * block_size, 64 * block_size, 63 * block_size],
+    #         [63 * block_size, 64 * block_size, 63 * block_size],
+    #         [63 * block_size, 64 * block_size, -64 * block_size],
+    #         [-64 * block_size, 64 * block_size, -64 * block_size]], \
+    #     [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
 
 
 def get_cam_rotation_matrices():
