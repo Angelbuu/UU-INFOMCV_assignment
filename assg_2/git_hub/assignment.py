@@ -1,6 +1,7 @@
 import glm
 import random
 import numpy as np
+from ..voxel_reconstruction import main
 
 block_size = 1.0
 
@@ -20,12 +21,30 @@ def set_voxel_positions(width, height, depth):
     # Generates random voxel locations
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     data, colors = [], []
-    for x in range(width):
-        for y in range(height):
-            for z in range(depth):
-                if random.randint(0, 1000) < 5:
-                    data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
-                    colors.append([x / width, z / depth, y / height])
+    visible_voxels = main()
+    for voxel in visible_voxels:
+        x, y, z = voxel
+
+        # Convert grid coordinates to world coordinates
+        world_x = x * block_size - width / 2
+        world_y = y * block_size
+        world_z = z * block_size - depth / 2
+
+        data.append([world_x, world_y, world_z])
+
+        # Simple coloring scheme (same as before)
+        colors.append([
+            x / width,
+            z / depth,
+            y / height
+        ])
+    # for x in range(width):
+    #     for y in range(height):
+    #         for z in range(depth):
+    #
+    #             if random.randint(0, 1000) < 5:
+    #                 data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
+    #                 colors.append([x / width, z / depth, y / height])
     return data, colors
 
 

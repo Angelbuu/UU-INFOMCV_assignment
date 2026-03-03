@@ -1,6 +1,5 @@
 import cv2 as cv
 import numpy as np
-
 from assg_1.online_phase import project_points
 
 
@@ -15,10 +14,11 @@ def load_camera_params(file):
     return mtx, dist, r_vec, t_vec
 
 
-def create_lookup_table(cameras, space_size=3.0, voxel_size=0.3):
-    voxels_x = np.arange(0, space_size, voxel_size)
-    voxels_y = np.arange(0, space_size, voxel_size)
-    voxels_z = np.arange(0, space_size, voxel_size)
+def create_lookup_table(cameras, space_size=2000.0, voxel_size=100.0):
+    voxels_x = np.arange(-space_size, space_size, voxel_size)
+    print(voxels_x)
+    voxels_y = np.arange(-space_size, space_size, voxel_size)
+    voxels_z = np.arange(-space_size, space_size, voxel_size)
 
     lookup_table = {}
 
@@ -28,7 +28,7 @@ def create_lookup_table(cameras, space_size=3.0, voxel_size=0.3):
                 voxel = (round(x, 3), round(y, 3), round(z, 3))
                 lookup_table[voxel] = {}
 
-                obj_point = np.array([x, y, z])
+                obj_point = np.array([[x, y, z], ])
 
                 for camera, params in enumerate(cameras):
                     mtx, dist, r_vec, t_vec = params
@@ -40,6 +40,7 @@ def create_lookup_table(cameras, space_size=3.0, voxel_size=0.3):
     print("Example entry:")
     first_key = next(iter(lookup_table))
     print(first_key, "->", lookup_table[first_key])
+    np.savez('data/lookup_table.npz', lookup_table=lookup_table)
 
 
 def main():
