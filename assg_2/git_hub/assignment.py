@@ -57,7 +57,7 @@ def get_cam_positions():
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     camera_coords = []
     for camera in cam_names:
-        cam_params_file = 'data/' + camera + '/config.xml'
+        cam_params_file = '../data/' + camera + '/config.xml'
         _, _, r_vec, t_vec = load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ))
         r_matrix, _ = cv.Rodrigues(r_vec)
         camera_pos = -r_matrix.T @ t_vec
