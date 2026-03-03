@@ -34,17 +34,17 @@ def voxel_reconstruction(lookup_table, views):
                 # print('Foreground')
 
         if visible_from_all:
-            output_voxel = [int(x) // 100 for x in voxel]
+            output_voxel = [int(x) // 20 for x in voxel]
             visible_voxels.append(output_voxel)
 
     return visible_voxels
 
 
-def main(skip_frames=100):
-    base_dir, file = 'data/', '/foreground_output/foreground.avi'
+def main(skip_frames=100, base_dir='data/'):
+    file = '/foreground_output/foreground.avi'
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     videos = []
-    lookup_table = np.load('data/lookup_table.npz', allow_pickle=True)['lookup_table'].item()
+    lookup_table = np.load(base_dir + 'lookup_table.npz', allow_pickle=True)['lookup_table'].item()
 
     for camera in cameras:
         video = cv.VideoCapture(base_dir + camera + file)

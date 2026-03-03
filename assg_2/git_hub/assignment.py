@@ -23,14 +23,14 @@ def set_voxel_positions(width, height, depth):
     # Generates random voxel locations
     # TODO: You need to calculate proper voxel arrays instead of random ones.
     data, colors = [], []
-    visible_voxels = main()
+    visible_voxels = main(base_dir='../data/')
     for voxel in visible_voxels:
         x, y, z = voxel
 
         # Convert grid coordinates to world coordinates
-        world_x = x * block_size - width / 2
+        world_x = x * block_size
         world_y = -z * block_size
-        world_z = y * block_size - depth / 2
+        world_z = y * block_size
 
         data.append([world_x, world_y, world_z])
 
@@ -48,6 +48,7 @@ def set_voxel_positions(width, height, depth):
     #                 data.append([x*block_size - width/2, y*block_size, z*block_size - depth/2])
     #                 colors.append([x / width, z / depth, y / height])
     print('Voxels displayed')
+    print(data)
     return data, colors
 
 
