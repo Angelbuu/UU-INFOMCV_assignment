@@ -10,7 +10,8 @@ SCALE = 20
 
 
 def generate_grid(width, depth):
-    """Generates floor grid vertex positions and checkerboard colors for visualization."""
+    # Generates the floor grid locations
+    # You don't need to edit this function
     data, colors = [], []
     for x in range(width):
         for z in range(depth):

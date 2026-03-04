@@ -31,7 +31,11 @@ def find_visible_voxels(lookup_table, views):
 
 
 def compute_depth_buffers(lookup_table, views):
-    """Computes per-pixel depth buffers and visible voxel sets per camera using z-buffering."""
+    """
+    Finds visible voxels from a view, those that are not occluded by other voxels.
+    Uses depth buffer to store smallest distance to camera for every pixel, and
+    a voxel buffer to store this closest voxel.
+    """
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     cameras = []
 
@@ -44,11 +48,11 @@ def compute_depth_buffers(lookup_table, views):
     height, width = views[0].shape[:2]
 
     depth_buffers = []
-    owner_buffers = []
+    voxel_buffers = []
 
     for _ in cameras:
         depth_buffers.append(np.full((height, width), np.inf))
-        owner_buffers.append(np.full((height, width), None, dtype=object))
+        voxel_buffers.append(np.full((height, width), None, dtype=object))
 
     for voxel, projections in lookup_table.items():
         X = np.array(voxel)
@@ -70,9 +74,8 @@ def compute_depth_buffers(lookup_table, views):
             if 0 <= x < width and 0 <= y < height:
                 if depth < depth_buffers[cam_idx][y, x]:
                     depth_buffers[cam_idx][y, x] = depth
-                    owner_buffers[cam_idx][y, x] = voxel
+                    voxel_buffers[cam_idx][y, x] = voxel
 
-    # Now build final visible sets properly
     visible_per_camera = []
 
     for cam_idx in range(len(cameras)):
@@ -80,7 +83,7 @@ def compute_depth_buffers(lookup_table, views):
 
         for y in range(height):
             for x in range(width):
-                voxel = owner_buffers[cam_idx][y, x]
+                voxel = voxel_buffers[cam_idx][y, x]
                 if voxel is not None:
                     visible_voxels.add(voxel)
 
@@ -91,9 +94,7 @@ def compute_depth_buffers(lookup_table, views):
 
 def color_visible_voxels(visible_voxels, lookup_table, views, visible_per_camera):
     """
-    Assigns RGB float colors in range [0,1]
-    suitable for OpenGL-style visualization.
-    Returns: voxel -> (R, G, B)
+    Assigns RGB float colors in range [0,1] for visible voxels (for visualization code).
     """
     voxel_colors = {}
 
@@ -113,19 +114,15 @@ def color_visible_voxels(visible_voxels, lookup_table, views, visible_per_camera
             y = int(round(y))
 
             if 0 <= x < width and 0 <= y < height:
-                # OpenCV gives BGR uint8
                 bgr = views[camera][y, x].astype(np.float32)
-
-                # Convert BGR -> RGB
                 rgb = bgr[::-1]
-
                 colors.append(rgb)
 
         if len(colors) > 0:
             colors = np.array(colors)
             final_rgb = np.median(colors, axis=0) / 255.0
         else:
-            final_rgb = (0.0, 0.0, 0.0)  # default for occluded voxels
+            final_rgb = (0.0, 0.0, 0.0)
 
         voxel_colors[voxel] = tuple(final_rgb)
 

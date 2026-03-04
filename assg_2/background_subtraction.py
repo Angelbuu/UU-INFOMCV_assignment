@@ -1,5 +1,3 @@
-# Task 2: background subtraction - HSV diff + morphology
-
 import argparse
 import cv2 as cv
 import numpy as np
@@ -8,13 +6,12 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
 
-# default thresholds for H, S, V difference (tune if needed)
 THRESH_H, THRESH_S, THRESH_V = 10, 40, 40
 KERNEL = (5, 5)
 
 
 def build_bg_model(path, method='median', step=3):
-    """Average or median over frames from background.avi. Median deals better with people walking through."""
+    """Average or median over frames from background.avi yp build a background model."""
     cap = cv.VideoCapture(path)
     frames = []
     i = 0
@@ -33,13 +30,13 @@ def build_bg_model(path, method='median', step=3):
 
 
 def h_diff(a, b):
-    """Hue wraps at 180"""
+    """Calculates difference between hues. Hue wraps at 180."""
     d = np.abs(a.astype(np.int16) - b.astype(np.int16))
     return np.minimum(d, 180 - d)
 
 
 def get_fg_mask(frame_hsv, bg_hsv, th, ts, tv, combine='or'):
-    """Threshold HSV differences. OR = fg if any channel differs, AND = stricter."""
+    """Threshold HSV differences. OR = fg if any channel differs."""
     hd = h_diff(frame_hsv[:, :, 0], bg_hsv[:, :, 0])
     sd = np.abs(frame_hsv[:, :, 1].astype(np.int16) - bg_hsv[:, :, 1].astype(np.int16))
     vd = np.abs(frame_hsv[:, :, 2].astype(np.int16) - bg_hsv[:, :, 2].astype(np.int16))
@@ -52,7 +49,7 @@ def get_fg_mask(frame_hsv, bg_hsv, th, ts, tv, combine='or'):
 
 
 def cleanup_mask(mask):
-    """Erode to kill noise, dilate to fill holes"""
+    """Performs erosion and dilation."""
     k = cv.getStructuringElement(cv.MORPH_ELLIPSE, KERNEL)
     mask = cv.erode(mask, k, iterations=1)
     return cv.dilate(mask, k, iterations=2)
@@ -65,23 +62,6 @@ def count_noise(mask):
         return 0
     areas = stats[1:, cv.CC_STAT_AREA]
     return np.sum(areas < 50) + 0.5 * np.sum(areas < 100)
-
-
-def find_thresh_manual(bg_hsv, frame_hsv, manual_path):
-    """Choice task: match manual segmentation, use XOR to score."""
-    manual = cv.imread(manual_path, cv.IMREAD_GRAYSCALE)
-    if manual is None:
-        raise FileNotFoundError(manual_path)
-    gt = (manual > 127).astype(np.uint8) * 255
-    best, best_t = -1, (THRESH_H, THRESH_S, THRESH_V)
-    for th in range(5, 30, 5):
-        for ts in range(20, 60, 10):
-            for tv in range(20, 60, 10):
-                m = cleanup_mask(get_fg_mask(frame_hsv, bg_hsv, th, ts, tv))
-                err = np.sum(cv.bitwise_xor(m, gt) > 0)
-                if -err > best:
-                    best, best_t = -err, (th, ts, tv)
-    return best_t
 
 
 def find_thresh_noise(bg_hsv, frame_hsv):
@@ -98,13 +78,14 @@ def find_thresh_noise(bg_hsv, frame_hsv):
 
 
 def run_camera(cam_id, auto_thresh=False, show=True, save=True):
-    """Runs background subtraction for one camera: builds model, extracts foreground, and saves to foreground_output/."""
+    """
+    Runs background subtraction for one camera: builds a background model, extracts foreground,
+    and saves to foreground_output/.
+    """
     cam_dir = os.path.join(DATA_DIR, cam_id)
     bg_path = os.path.join(cam_dir, 'background.avi')
     vid_path = os.path.join(cam_dir, 'video.avi')
-    if not os.path.exists(bg_path) or not os.path.exists(vid_path):
-        print(f"skip {cam_id}: missing files")
-        return
+
     print(f"\n{cam_id}")
     bg = build_bg_model(bg_path, method='median', step=3)
     # get thresholds
@@ -114,11 +95,7 @@ def run_camera(cam_id, auto_thresh=False, show=True, save=True):
         cap.release()
         if ret:
             fh = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-            manual = os.path.join(cam_dir, 'manual_foreground.png')
-            if os.path.exists(manual):
-                th, ts, tv = find_thresh_manual(bg, fh, manual)
-            else:
-                th, ts, tv = find_thresh_noise(bg, fh)
+            th, ts, tv = find_thresh_noise(bg, fh)
             print("thresh:", th, ts, tv)
         else:
             th, ts, tv = THRESH_H, THRESH_S, THRESH_V
