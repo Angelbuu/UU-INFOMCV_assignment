@@ -8,8 +8,6 @@ def voxels_to_volume(visible_voxels, voxel_size):
     """
     Converts list of voxel world coordinates into a dense 3D binary volume.
     """
-
-    # Convert to numpy
     voxels = np.array(visible_voxels)
 
     # Shift to positive grid indices
@@ -34,7 +32,6 @@ def extract_mesh_from_volume(volume, voxel_size, min_coords):
     """
     Runs marching cubes and converts vertices back to world coordinates.
     """
-
     verts, faces, normals, _ = marching_cubes(volume, level=0.5)
 
     # Convert grid coords back to world coords
@@ -54,9 +51,7 @@ def visualize_mesh(verts, faces):
     o3d.visualization.draw_geometries([mesh])
 
 
-visible_voxels = voxel_reconstruction(skip_frames=400)
-volume, min_coords = voxels_to_volume(visible_voxels, voxel_size=20.0)
-
-verts, faces = extract_mesh_from_volume(volume, voxel_size=20.0, min_coords=min_coords)
-
-visualize_mesh(verts, faces)
+if __name__ == '__main__':
+    volume, min_coords = voxels_to_volume(voxel_reconstruction(skip_frames=400), voxel_size=20.0)
+    verts, faces = extract_mesh_from_volume(volume, voxel_size=20.0, min_coords=min_coords)
+    visualize_mesh(verts, faces)

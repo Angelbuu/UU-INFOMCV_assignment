@@ -31,28 +31,24 @@ def find_visible_voxels(lookup_table, views):
 
 
 def compute_depth_buffers(lookup_table, views):
-    """
-    Creates per-camera depth buffers.
-    Returns:
-        depth_buffers[camera] = 2D array with closest depth per pixel
-        visible_per_camera[camera] = set of visible voxels
-    """
+
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     cameras = []
 
     for camera in cam_names:
         cam_params_file = '../data/' + camera + '/config.xml'
-        cameras.append(load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ)))
+        cameras.append(load_camera_params(
+            cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ)
+        ))
 
     height, width = views[0].shape[:2]
 
     depth_buffers = []
-    visible_per_camera = []
+    owner_buffers = []
 
-    # Initialize buffers
     for _ in cameras:
         depth_buffers.append(np.full((height, width), np.inf))
-        visible_per_camera.append(set())
+        owner_buffers.append(np.full((height, width), None, dtype=object))
 
     for voxel, projections in lookup_table.items():
         X = np.array(voxel)
@@ -60,7 +56,6 @@ def compute_depth_buffers(lookup_table, views):
         for cam_idx, params in enumerate(cameras):
             mtx, dist, r_vec, t_vec = params
 
-            # Convert voxel to camera coordinates
             R, _ = cv.Rodrigues(r_vec)
             X_cam = R @ X.reshape(3, 1) + t_vec
             depth = float(X_cam[2])
@@ -75,7 +70,21 @@ def compute_depth_buffers(lookup_table, views):
             if 0 <= x < width and 0 <= y < height:
                 if depth < depth_buffers[cam_idx][y, x]:
                     depth_buffers[cam_idx][y, x] = depth
-                    visible_per_camera[cam_idx].add(voxel)
+                    owner_buffers[cam_idx][y, x] = voxel
+
+    # Now build final visible sets properly
+    visible_per_camera = []
+
+    for cam_idx in range(len(cameras)):
+        visible_voxels = set()
+
+        for y in range(height):
+            for x in range(width):
+                voxel = owner_buffers[cam_idx][y, x]
+                if voxel is not None:
+                    visible_voxels.add(voxel)
+
+        visible_per_camera.append(visible_voxels)
 
     return depth_buffers, visible_per_camera
 
@@ -114,14 +123,11 @@ def color_visible_voxels(visible_voxels, lookup_table, views, visible_per_camera
 
         if len(colors) > 0:
             colors = np.array(colors)
+            final_rgb = np.median(colors, axis=0) / 255.0
+        else:
+            final_rgb = (0.0, 0.0, 0.0)  # default for occluded voxels
 
-            # Median is safer for lighting differences
-            final_rgb = np.median(colors, axis=0)
-
-            # Normalize 0–255 → 0–1
-            final_rgb /= 255.0
-
-            voxel_colors[voxel] = tuple(final_rgb)
+        voxel_colors[voxel] = tuple(final_rgb)
 
     return voxel_colors
 

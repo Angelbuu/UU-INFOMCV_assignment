@@ -36,7 +36,6 @@ def set_voxel_positions(width, height, depth):
         world_z = int(y) // SCALE * block_size
 
         data.append([world_x, world_y, world_z])
-
         colors.append(voxel_colors[voxel])
     return data, colors
 
