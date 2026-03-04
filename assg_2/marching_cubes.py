@@ -41,6 +41,7 @@ def extract_mesh_from_volume(volume, voxel_size, min_coords):
 
 
 def visualize_mesh(verts, faces):
+    """Builds an Open3D triangle mesh from vertices and faces, then displays it."""
     mesh = o3d.geometry.TriangleMesh()
 
     mesh.vertices = o3d.utility.Vector3dVector(verts)

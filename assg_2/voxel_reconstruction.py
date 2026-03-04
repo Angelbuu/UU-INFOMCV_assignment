@@ -31,7 +31,7 @@ def find_visible_voxels(lookup_table, views):
 
 
 def compute_depth_buffers(lookup_table, views):
-
+    """Computes per-pixel depth buffers and visible voxel sets per camera using z-buffering."""
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     cameras = []
 

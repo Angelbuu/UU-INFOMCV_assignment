@@ -98,6 +98,7 @@ def find_thresh_noise(bg_hsv, frame_hsv):
 
 
 def run_camera(cam_id, auto_thresh=False, show=True, save=True):
+    """Runs background subtraction for one camera: builds model, extracts foreground, and saves to foreground_output/."""
     cam_dir = os.path.join(DATA_DIR, cam_id)
     bg_path = os.path.join(cam_dir, 'background.avi')
     vid_path = os.path.join(cam_dir, 'video.avi')
