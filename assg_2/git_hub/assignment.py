@@ -21,8 +21,13 @@ def generate_grid(width, depth):
 
 
 def set_voxel_positions(width, height, depth):
+    """
+    Calls voxel reconstruction to get a list of visible voxels. Scales and converts the voxels to correct
+    axis coordinates for the visualization world. Returns the corrected voxels and a color scheme.
+    """
     data, colors = [], []
     visible_voxels = voxel_reconstruction(base_dir='../data/', skip_frames=400)
+
     for voxel in visible_voxels:
         x, y, z = voxel
 
@@ -41,11 +46,14 @@ def set_voxel_positions(width, height, depth):
 
 
 def get_cam_positions():
+    """Calculates and scales camera positions for the visualization world."""
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     camera_coords = []
+
     for camera in cam_names:
         cam_params_file = '../data/' + camera + '/config.xml'
         _, _, r_vec, t_vec = load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ))
+
         r_matrix, _ = cv.Rodrigues(r_vec)
         camera_pos = -r_matrix.T @ t_vec
         camera_pos = camera_pos.flatten().tolist()
@@ -60,38 +68,24 @@ def get_cam_positions():
 
 
 def get_cam_rotation_matrices():
-    # Generates dummy camera rotation matrices, looking down 45 degrees towards the center of the room
-    # TODO: You need to input the estimated camera rotation matrices (4x4) of the 4 cameras in the world coordinates.
+    """Calculates camera orientations for the visualization world."""
     cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
     cam_rotations = []
 
     for camera in cam_names:
         cam_params_file = '../data/' + camera + '/config.xml'
-        _, _, r_vec, t_vec = load_camera_params(
-            cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ)
-        )
+        _, _, r_vec, t_vec = load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ))
 
-        # Convert Rodrigues vector to rotation matrix (world -> camera)
         r_matrix, _ = cv.Rodrigues(r_vec)
-
-        # Convert to camera -> world rotation
         r_matrix_world = r_matrix.T
 
-        # Build 4x4 transformation matrix
-        rot_4x4 = glm.mat4(1.0)
-
+        rotation = glm.mat4(1.0)
         for i in range(3):
             for j in range(3):
-                rot_4x4[i][j] = r_matrix_world[i, j]
+                rotation[i][j] = r_matrix_world[i, j]
 
-        cam_rotations.append(rot_4x4)
+        cam_rotations.append(rotation)
 
-    # cam_angles = [[0, 45, -45], [0, 135, -45], [0, 225, -45], [0, 315, -45]]
-    # cam_rotations = [glm.mat4(1), glm.mat4(1), glm.mat4(1), glm.mat4(1)]
-    # for c in range(len(cam_rotations)):
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][0] * np.pi / 180, [1, 0, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][1] * np.pi / 180, [0, 1, 0])
-    #     cam_rotations[c] = glm.rotate(cam_rotations[c], cam_angles[c][2] * np.pi / 180, [0, 0, 1])
     return cam_rotations
 
 
