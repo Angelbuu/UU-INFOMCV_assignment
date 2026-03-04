@@ -10,12 +10,14 @@ BOARD_SHAPE = (8, 6)
 
 
 def prepare_object_points():
+    """Prepares object points (chessboard corners) as coordinates in 3D world."""
     objp = np.zeros((BOARD_SHAPE[0] * BOARD_SHAPE[1], 3), np.float32)
     objp[:, :2] = np.mgrid[0:BOARD_SHAPE[0], 0:BOARD_SHAPE[1]].T.reshape(-1, 2) * SQUARE_SIZE
     return objp
 
 
 def calculate_intrinsics(video, video_num, skip_frames=50):
+    """Calculates camera intrinsics from a number of video frames."""
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
     objp = prepare_object_points()
@@ -26,10 +28,11 @@ def calculate_intrinsics(video, video_num, skip_frames=50):
     ret, frame = video.read()
     if not ret:
         return None, None
+
     h, w = frame.shape[:2]
     img_size = (w, h)
-    print('Image size:', img_size)
     num_frames = 1
+
     while True:
         ret, frame = video.read()
         if not ret:
@@ -54,23 +57,26 @@ def calculate_intrinsics(video, video_num, skip_frames=50):
 
 
 def calculate_extrinsics(video, mtx, dist):
+    """
+    Calculates camera extrinsics based on (frame of a) video and previously calculated intrinsics.
+    Also draws 3D world axes in the frame.
+    """
     objp = prepare_object_points()
-
     _, frame = video.read()
-    width = frame.shape[1]
-    print(width)
-    _, corners = find_corners_manually(frame, (BOARD_SHAPE[0], BOARD_SHAPE[1]), 3000)
 
+    _, corners = find_corners_manually(frame, (BOARD_SHAPE[0], BOARD_SHAPE[1]), 3000)
     ret, r_vec, t_vec = cv.solvePnP(objp, corners, mtx, dist)
-    print(r_vec, t_vec)
+
     draw_axes(frame, mtx, dist, r_vec, t_vec, 400, 2)
     cv.imshow('img', frame)
     cv.waitKey(0)
     cv.destroyAllWindows()
+
     return r_vec, t_vec
 
 
 def save_calibration(camera_id, mtx, dist, r_vec, t_vec):
+    """Saves camera intrinsic and extrinsic parameters to an .xml file"""
     path = 'data/' + camera_id + '/config.xml'
     fs = cv.FileStorage(path, cv.FILE_STORAGE_WRITE)
     fs.write('camera_matrix', mtx)
@@ -82,11 +88,14 @@ def save_calibration(camera_id, mtx, dist, r_vec, t_vec):
 
 
 def main():
+    """Calculates and saves intrinsic and extrinsic parameters for four cameras."""
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
+
     for camera in cameras:
         print(f'\nCalibrating {camera}')
         cam_dir = 'data/' + camera
         video = cv.VideoCapture(cam_dir + '/intrinsics.avi')
+
         mtx, dist = calculate_intrinsics(video, camera, skip_frames=50)
         video.release()
 
