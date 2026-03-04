@@ -30,22 +30,122 @@ def find_visible_voxels(lookup_table, views):
     return visible_voxels
 
 
-def voxel_reconstruction(skip_frames=4, base_dir='data/'):
+def compute_depth_buffers(lookup_table, views):
+    """
+    Creates per-camera depth buffers.
+    Returns:
+        depth_buffers[camera] = 2D array with closest depth per pixel
+        visible_per_camera[camera] = set of visible voxels
+    """
+    cam_names = ['cam1', 'cam2', 'cam3', 'cam4']
+    cameras = []
+
+    for camera in cam_names:
+        cam_params_file = '../data/' + camera + '/config.xml'
+        cameras.append(load_camera_params(cv.FileStorage(cam_params_file, cv.FILE_STORAGE_READ)))
+
+    height, width = views[0].shape[:2]
+
+    depth_buffers = []
+    visible_per_camera = []
+
+    # Initialize buffers
+    for _ in cameras:
+        depth_buffers.append(np.full((height, width), np.inf))
+        visible_per_camera.append(set())
+
+    for voxel, projections in lookup_table.items():
+        X = np.array(voxel)
+
+        for cam_idx, params in enumerate(cameras):
+            mtx, dist, r_vec, t_vec = params
+
+            # Convert voxel to camera coordinates
+            R, _ = cv.Rodrigues(r_vec)
+            X_cam = R @ X.reshape(3, 1) + t_vec
+            depth = float(X_cam[2])
+
+            if depth <= 0:
+                continue
+
+            x, y = projections[cam_idx][0]
+            x = int(round(x))
+            y = int(round(y))
+
+            if 0 <= x < width and 0 <= y < height:
+                if depth < depth_buffers[cam_idx][y, x]:
+                    depth_buffers[cam_idx][y, x] = depth
+                    visible_per_camera[cam_idx].add(voxel)
+
+    return depth_buffers, visible_per_camera
+
+
+def color_visible_voxels(visible_voxels, lookup_table, views, visible_per_camera):
+    """
+    Assigns RGB float colors in range [0,1]
+    suitable for OpenGL-style visualization.
+    Returns: voxel -> (R, G, B)
+    """
+    voxel_colors = {}
+
+    height, width = views[0].shape[:2]
+
+    for voxel in visible_voxels:
+        projections = lookup_table[voxel]
+        colors = []
+
+        for camera, projected_point in projections.items():
+            if voxel not in visible_per_camera[camera]:
+                continue
+
+            x, y = projected_point[0]
+
+            x = int(round(x))
+            y = int(round(y))
+
+            if 0 <= x < width and 0 <= y < height:
+                # OpenCV gives BGR uint8
+                bgr = views[camera][y, x].astype(np.float32)
+
+                # Convert BGR -> RGB
+                rgb = bgr[::-1]
+
+                colors.append(rgb)
+
+        if len(colors) > 0:
+            colors = np.array(colors)
+
+            # Median is safer for lighting differences
+            final_rgb = np.median(colors, axis=0)
+
+            # Normalize 0–255 → 0–1
+            final_rgb /= 255.0
+
+            voxel_colors[voxel] = tuple(final_rgb)
+
+    return voxel_colors
+
+
+def voxel_reconstruction(skip_frames=4, base_dir='data/', color_voxels=False):
     """Finds a list of voxels that are visible from all camera views, for a number of frames in a video."""
     file = '/foreground_output/foreground.avi'
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     videos = []
+    videos_color = []
     lookup_table = np.load(base_dir + 'lookup_table.npz', allow_pickle=True)['lookup_table'].item()
 
     for camera in cameras:
         video = cv.VideoCapture(base_dir + camera + file)
         videos.append(video)
+        video_color = cv.VideoCapture(base_dir + camera + '/video.avi')
+        videos_color.append(video_color)
 
     visible_voxels = None
     frames = 0
     while True:
         ret = True
         views = []
+        views_color = []
 
         for video in videos:
             ret, frame = video.read()
@@ -53,14 +153,26 @@ def voxel_reconstruction(skip_frames=4, base_dir='data/'):
                 break
             views.append(frame)
 
+        for video in videos_color:
+            ret, frame = video.read()
+            if not ret:
+                break
+            views_color.append(frame)
+
         frames += 1
         if not ret:
             break
 
         if frames % skip_frames == 0:
             visible_voxels = find_visible_voxels(lookup_table, views)
+            if color_voxels:
+                _, visible_per_camera = compute_depth_buffers(lookup_table, views)
+                voxel_colors = color_visible_voxels(visible_voxels, lookup_table, views_color, visible_per_camera)
+                return visible_voxels, voxel_colors
 
     for video in videos:
+        video.release()
+    for video in videos_color:
         video.release()
 
     return visible_voxels

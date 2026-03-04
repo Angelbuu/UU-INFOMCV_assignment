@@ -26,7 +26,7 @@ def set_voxel_positions(width, height, depth):
     axis coordinates for the visualization world. Returns the corrected voxels and a color scheme.
     """
     data, colors = [], []
-    visible_voxels = voxel_reconstruction(base_dir='../data/', skip_frames=400)
+    visible_voxels, voxel_colors = voxel_reconstruction(base_dir='../data/', skip_frames=400, color_voxels=True)
 
     for voxel in visible_voxels:
         x, y, z = voxel
@@ -37,11 +37,7 @@ def set_voxel_positions(width, height, depth):
 
         data.append([world_x, world_y, world_z])
 
-        colors.append([
-            world_x / width,
-            -world_y / height,
-            world_z / depth,
-        ])
+        colors.append(voxel_colors[voxel])
     return data, colors
 
 
@@ -64,7 +60,7 @@ def get_cam_positions():
             [camera_coords[1][0], -camera_coords[1][2], camera_coords[1][1]],
             [camera_coords[2][0], -camera_coords[2][2], camera_coords[2][1]],
             [camera_coords[3][0], -camera_coords[3][2], camera_coords[3][1]]], \
-        [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0], [1.0, 1.0, 0]]
+        [[1.0, 0, 0], [0, 1.0, 0], [1.0, 0, 1.0], [1.0, 1.0, 0]]
 
 
 def get_cam_rotation_matrices():
