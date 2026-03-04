@@ -6,26 +6,21 @@ from assg_2.create_lookup_table import load_camera_params
 
 
 def find_visible_voxels(lookup_table, views):
+    """Finds a list of voxels that are visible from all camera views."""
     height, width = views[0].shape[:2]
     visible_voxels = []
 
     for voxel, projections in lookup_table.items():
-
         visible_from_all = True
 
         for camera, projected_point in projections.items():
+            x, y = projected_point[0]
 
-            u, v = projected_point[0]
-
-            # Convert to integer pixel coords
-            # u = int(round(u))
-            # v = int(round(v))
-
-            if not (0 <= u < width and 0 <= v < height):
+            if not (0 <= x < width and 0 <= y < height):
                 visible_from_all = False
                 break
 
-            if views[camera][v, u].all() == 0:
+            if views[camera][y, x].all() == 0:
                 visible_from_all = False
                 break
 
@@ -36,6 +31,7 @@ def find_visible_voxels(lookup_table, views):
 
 
 def voxel_reconstruction(skip_frames=4, base_dir='data/'):
+    """Finds a list of voxels that are visible from all camera views, for a number of frames in a video."""
     file = '/foreground_output/foreground.avi'
     cameras = ['cam1', 'cam2', 'cam3', 'cam4']
     videos = []
@@ -50,13 +46,14 @@ def voxel_reconstruction(skip_frames=4, base_dir='data/'):
     while True:
         ret = True
         views = []
+
         for video in videos:
             ret, frame = video.read()
             if not ret:
                 break
             views.append(frame)
-        frames += 1
 
+        frames += 1
         if not ret:
             break
 
@@ -66,11 +63,11 @@ def voxel_reconstruction(skip_frames=4, base_dir='data/'):
     for video in videos:
         video.release()
 
-    print(frames)
     return visible_voxels
 
 
 def test_world_origin():
+    """Shows the world origin and axes. Used for figuring out which points in 3D world to put in a lookup table."""
     video = cv.VideoCapture('data/cam1/video.avi')
     ret, frame = video.read()
     mtx, dist, r_vec, t_vec = load_camera_params(cv.FileStorage('data/cam1/config.xml', cv.FILE_STORAGE_READ))
