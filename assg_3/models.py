@@ -60,6 +60,12 @@ class LeNetVariant2(LeNetVariant1):
         return self.fc_2(out)
 
 
+class CIFAR100Model(LeNetVariant2):  # TODO: choose the best model to inherit
+    def __init__(self):
+        super().__init__()
+        self.fc_2 = nn.Linear(84, 20)
+
+
 def init_weights(layer):
     if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
         nn.init.kaiming_uniform_(layer.weight, nonlinearity='relu')
@@ -74,8 +80,8 @@ def init_model(model_class=LeNet):
 
 
 if __name__ == '__main__':
-    baseline = LeNet()
-    baseline.apply(init_weights)
+    baseline = init_model(LeNet)
+
     summary(LeNet(), (3, 32, 32))
     summary(LeNetVariant1(), (3, 32, 32))
     summary(LeNetVariant2(), (3, 32, 32))

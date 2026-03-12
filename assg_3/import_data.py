@@ -1,7 +1,23 @@
+import os
+import pickle
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10 as CIF_TEN, CIFAR100 as CIF_HUNDRED
 from torchvision.transforms import ToTensor
 from sklearn.model_selection import train_test_split
+
+
+class CIFAR100Coarse(CIF_HUNDRED):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # load coarse labels from original CIFAR files
+        file = self.train_list[0][0] if self.train else self.test_list[0][0]
+        path = os.path.join(self.root, self.base_folder, file)
+
+        with open(path, "rb") as f:
+            entry = pickle.load(f, encoding="latin1")
+
+        self.targets = entry["coarse_labels"]
 
 
 def train_validation_split(dataset, val_set_ratio):
@@ -18,12 +34,13 @@ def load_data(dataset='CIF_TEN', val_set_ratio=0.1, batch_size=32):
     if dataset == 'CIF_TEN':
         dataset = CIF_TEN
     elif dataset == 'CIF_HUNDRED':
-        dataset = CIF_HUNDRED
+        dataset = CIFAR100Coarse
     else:
         raise ValueError('Unknown dataset')
 
     all_train_data = dataset(root='data', download=True, transform=ToTensor())
     test_data = dataset(root='data', download=True, transform=ToTensor(), train=False)
+
     print('Loading dataset', type(all_train_data))
     print('All train samples', len(all_train_data))
     print('Test samples', len(test_data))
@@ -41,3 +58,4 @@ def load_data(dataset='CIF_TEN', val_set_ratio=0.1, batch_size=32):
 
 if __name__ == '__main__':
     load_data(val_set_ratio=0.15)
+    load_data('CIF_HUNDRED', val_set_ratio=0.15)
