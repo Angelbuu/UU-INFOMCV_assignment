@@ -21,6 +21,7 @@ class CIFAR100Coarse(CIF_HUNDRED):
 
 
 def train_validation_split(dataset, val_set_ratio):
+    # 15% val: enough samples for reliable eval (~7.5k for CIFAR-10) without losing too much train data
     labels = dataset.targets
     indices = list(range(len(dataset)))
     train_idx, val_idx = train_test_split(indices, test_size=val_set_ratio, stratify=labels)
@@ -30,7 +31,7 @@ def train_validation_split(dataset, val_set_ratio):
     return train_data, validation_data
 
 
-def load_data(dataset='CIF_TEN', val_set_ratio=0.1, batch_size=32):
+def load_data(dataset='CIF_TEN', val_set_ratio=0.15, batch_size=32):
     if dataset == 'CIF_TEN':
         dataset = CIF_TEN
     elif dataset == 'CIF_HUNDRED':

@@ -1,5 +1,4 @@
 import torch
-from torchsummary import summary
 import torch.nn as nn
 
 
@@ -60,7 +59,19 @@ class LeNetVariant2(LeNetVariant1):
         return self.fc_2(out)
 
 
-class CIFAR100Model(LeNetVariant2):  # TODO: choose the best model to inherit
+class CIFAR100Model(LeNetVariant2):
+    def __init__(self):
+        super().__init__()
+        self.fc_2 = nn.Linear(84, 20)
+
+
+class CIFAR100LeNet(LeNet):
+    def __init__(self):
+        super().__init__()
+        self.fc_2 = nn.Linear(84, 20)
+
+
+class CIFAR100Variant1(LeNetVariant1):
     def __init__(self):
         super().__init__()
         self.fc_2 = nn.Linear(84, 20)
@@ -80,11 +91,13 @@ def init_model(model_class=LeNet):
 
 
 if __name__ == '__main__':
-    baseline = init_model(LeNet)
-
-    summary(LeNet(), (3, 32, 32))
-    summary(LeNetVariant1(), (3, 32, 32))
-    summary(LeNetVariant2(), (3, 32, 32))
+    try:
+        from torchsummary import summary
+        summary(LeNet(), (3, 32, 32))
+        summary(LeNetVariant1(), (3, 32, 32))
+        summary(LeNetVariant2(), (3, 32, 32))
+    except ImportError:
+        pass
 
     x = torch.randn(1, 3, 32, 32)
     print(LeNet()(x).shape)
