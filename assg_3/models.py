@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchsummary import summary
+from torchinfo import summary
 
 
 class LeNet(nn.Module):
@@ -118,9 +118,9 @@ def init_model(model_class=LeNet):
 
 
 if __name__ == '__main__':
-    summary(LeNet(), (3, 32, 32))
-    summary(LeNetVariant1(), (3, 32, 32))
-    summary(LeNetVariant2(), (3, 32, 32))
+    summary(LeNet(), input_size=(1, 3, 32, 32), verbose=1)
+    summary(LeNetVariant1(), input_size=(1, 3, 32, 32), verbose=1)
+    summary(LeNetVariant2(), input_size=(1, 3, 32, 32), verbose=1)
 
     x = torch.randn(1, 3, 32, 32)
     print(LeNet()(x).shape)

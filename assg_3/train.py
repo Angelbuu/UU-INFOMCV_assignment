@@ -2,7 +2,6 @@ import os
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from sklearn.metrics import confusion_matrix
 
 from models import init_model, LeNet, LeNetVariant1, LeNetVariant2
 from models import CIFAR100Variant2, CIFAR100LeNet, CIFAR100Variant1

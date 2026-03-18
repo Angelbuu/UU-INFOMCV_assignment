@@ -43,7 +43,7 @@ def train_validation_split(dataset, val_set_ratio):
     return train_data, validation_data
 
 
-def load_data(dataset='CIF_TEN', val_set_ratio=0.15, batch_size=32):
+def load_data(dataset='CIF_TEN', val_set_ratio=0.15, batch_size=32, cv=False):
     if dataset == 'CIF_TEN':
         dataset = CIF_TEN
     elif dataset == 'CIF_HUNDRED':
@@ -53,6 +53,9 @@ def load_data(dataset='CIF_TEN', val_set_ratio=0.15, batch_size=32):
 
     all_train_data = dataset(root='data', download=True, transform=ToTensor())
     test_data = dataset(root='data', download=True, transform=ToTensor(), train=False)
+
+    if cv:
+        return all_train_data, test_data
 
     print('Loading dataset', type(all_train_data))
     print('All train samples', len(all_train_data))
