@@ -10,6 +10,7 @@ from graphs import plot_metrics, plot_confusion_matrix
 
 
 def minibatch_forward_pass(model, minibatch, loss_function, use_feedback=False):
+    """One forward pass; returns loss, batch loss, size, correct count. use_feedback adds auxiliary losses."""
     images, labels = minibatch
     if use_feedback:
         outputs, fb_outputs_1, fb_outputs_2 = model(images, use_feedback=use_feedback)
@@ -30,7 +31,8 @@ def minibatch_forward_pass(model, minibatch, loss_function, use_feedback=False):
     return loss, batch_loss, batch_size, batch_correct
 
 
-def validate(model: nn.Module, val_data):
+def validate(model, val_data):
+    """Evaluates model on validation set; returns total loss and accuracy %."""
     model.eval()
     loss_function = nn.CrossEntropyLoss()
 
@@ -52,6 +54,7 @@ def validate(model: nn.Module, val_data):
 
 def train(model, train_data, val_data, max_epochs=50, optim=Adam, lr=0.001, patience=5, use_lr_schedule=False,
           use_feedback=False):
+    """Trains model with early stopping; optional LR schedule (x0.5 every 5 epochs) and auxiliary feedback losses."""
     print('\nTraining', type(model).__name__, '(lr schedule)' if use_lr_schedule else '')
 
     loss_fn = nn.CrossEntropyLoss()
@@ -122,6 +125,7 @@ def evaluate(model, test_data):
 
 
 def train_cifar_10_models(cif_ten_train, cif_ten_val):
+    """Trains LeNet, Variant1, Variant2; saves checkpoints and plots; returns results and models."""
     results = []
 
     lenet, tl, ta, vl, va, _ = train(init_model(LeNet), cif_ten_train, cif_ten_val)
@@ -146,6 +150,7 @@ def train_cifar_10_models(cif_ten_train, cif_ten_val):
 
 
 def train_cifar_100_model(best_name):
+    """Trains CIFAR-100 model using best CIFAR-10 architecture (20 coarse classes)."""
     cif_hundred_train, cif_hundred_val, _ = load_data(dataset='CIF_HUNDRED', val_set_ratio=0.15)
 
     if best_name == 'CIFAR10_lenet':
@@ -163,6 +168,7 @@ def train_cifar_100_model(best_name):
 
 
 def finetune(best_name, cif_100, cif_ten_train, cif_ten_val):
+    """Loads CIFAR-100 weights, replaces last layer for 10 outputs, fine-tunes on CIFAR-10 with lr/2."""
     if best_name == 'CIFAR10_lenet':
         base_cls = LeNet
     elif best_name == 'CIFAR10_model1':
@@ -181,6 +187,7 @@ def finetune(best_name, cif_100, cif_ten_train, cif_ten_val):
 
 
 def test_set_results(results, best_model, best_name, cif_10_pretrained, test_data):
+    """Prints performance table and confusion matrices; saves confusion matrix plots."""
     acc_best, preds_best, lbls = evaluate(best_model, test_data)
     acc_pre, preds_pre, _ = evaluate(cif_10_pretrained, test_data)
 
@@ -197,6 +204,7 @@ def test_set_results(results, best_model, best_name, cif_10_pretrained, test_dat
 
 
 def main():
+    """Full pipeline: train CIFAR-10 models, pick best, train CIFAR-100, fine-tune, compare on test set."""
     os.makedirs('checkpoints', exist_ok=True)
 
     cif_ten_train, cif_ten_val, test_data = load_data(val_set_ratio=0.15)
