@@ -7,6 +7,7 @@ from import_data import load_data, CIFAR10_CLASSES
 
 
 def get_embeddings(model, test_data):
+    """Collects the embeddings and labels of test data from the second the last dense layer."""
     model.eval()
     all_embeddings = []
     all_labels = []
@@ -24,11 +25,13 @@ def get_embeddings(model, test_data):
 
 
 def encode_tsne(embeddings):
+    """Performs t-SNE."""
     tsne = TSNE(2)
     return tsne.fit_transform(embeddings)
 
 
 def plot_tsne(embeddings_2d, labels):
+    """Plots scatterplot of the t-SNE with corresponding labels."""
     plt.figure(figsize=(8, 6))
 
     for class_idx, class_name in enumerate(CIFAR10_CLASSES):
@@ -49,6 +52,7 @@ def plot_tsne(embeddings_2d, labels):
 
 
 def main():
+    """Loads a trained LeNet model visualizes the t-SNE embeddings of test data."""
     _, _, test_data = load_data(val_set_ratio=0.15)
 
     model = init_model(LeNet)

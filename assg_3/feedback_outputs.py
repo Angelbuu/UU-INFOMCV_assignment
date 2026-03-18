@@ -7,6 +7,7 @@ from import_data import load_data, CIFAR10_CLASSES
 
 
 def visualize_outputs(model, dataloader, class_names, num_images=4):
+    """Displays a number of images and the labels predicted by various output layers."""
     model.eval()
 
     images, labels = next(iter(dataloader))
@@ -40,6 +41,7 @@ def visualize_outputs(model, dataloader, class_names, num_images=4):
 
 
 def main():
+    """Trains LeNet with feedback output layers and displays some test outputs and corresponding predictions."""
     cif_ten_train, cif_ten_val, test_data = load_data(val_set_ratio=0.15)
     lenet, tl, ta, vl, va, _ = train(init_model(LeNet), cif_ten_train, cif_ten_val, use_feedback=True)
     print(f'Test accuracy: {evaluate(lenet, test_data)[0]}')

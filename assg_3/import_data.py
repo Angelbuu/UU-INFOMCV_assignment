@@ -22,6 +22,7 @@ CIFAR10_CLASSES = [
 class CIFAR100Coarse(CIF_HUNDRED):
     """CIFAR 100 dataset adapted to use 20 superclass labels instead of 100 subclass labels."""
     def __init__(self, *args, **kwargs):
+        """Initialize the dataset from CIFAR 100 and replace the labels."""
         super().__init__(*args, **kwargs)
 
         file = self.train_list[0][0] if self.train else self.test_list[0][0]
@@ -34,6 +35,7 @@ class CIFAR100Coarse(CIF_HUNDRED):
 
 
 def train_validation_split(dataset, val_set_ratio):
+    """Split the dataset into train and validation subsets."""
     labels = dataset.targets
     indices = list(range(len(dataset)))
     train_idx, val_idx = train_test_split(indices, test_size=val_set_ratio, stratify=labels)
@@ -44,6 +46,8 @@ def train_validation_split(dataset, val_set_ratio):
 
 
 def load_data(dataset='CIF_TEN', val_set_ratio=0.15, batch_size=32, cv=False):
+    """Load the desired dataset and split the train set into training and validation sets, or return just train
+    set if cv is True. Batch size is specified for dataloaders."""
     if dataset == 'CIF_TEN':
         dataset = CIF_TEN
     elif dataset == 'CIF_HUNDRED':

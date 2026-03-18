@@ -8,6 +8,10 @@ from train import train
 
 
 def main():
+    """
+    Trains LeNet on 5-fold cross-validation, determines the optimal number of epochs and re-trains on
+    full training set. Report accuracy for test set.
+    """
     train_data, test_data = load_data(cv=True)
     test_loader = DataLoader(test_data, batch_size=32, shuffle=False)
 
