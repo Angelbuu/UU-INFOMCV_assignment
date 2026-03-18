@@ -18,7 +18,7 @@ def plot_metrics(train_values, val_values, ylabel="Loss", title="Training vs Val
     plt.legend()
     plt.grid(True)
 
-    plt.show()
+    plt.savefig(f"{title}.png")
 
 
 def plot_confusion_matrix(labels, preds, title="Confusion Matrix"):
@@ -43,4 +43,4 @@ def plot_confusion_matrix(labels, preds, title="Confusion Matrix"):
                      ha="center", va="center")
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"{title}.png")
