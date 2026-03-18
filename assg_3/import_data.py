@@ -20,10 +20,10 @@ CIFAR10_CLASSES = [
 
 
 class CIFAR100Coarse(CIF_HUNDRED):
+    """CIFAR 100 dataset adapted to use 20 superclass labels instead of 100 subclass labels."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # load coarse labels from original CIFAR files
         file = self.train_list[0][0] if self.train else self.test_list[0][0]
         path = os.path.join(self.root, self.base_folder, file)
 
