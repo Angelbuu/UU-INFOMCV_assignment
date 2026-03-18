@@ -4,6 +4,7 @@ from torchinfo import summary
 
 
 class LeNet(nn.Module):
+    """LeNet-5 for 32x32x3 images, 10 outputs. Optional feedback layers from conv/pool."""
     def __init__(self, input_channels=3):
         super().__init__()
         self.conv_1 = nn.Conv2d(input_channels, 6, 5)
@@ -21,7 +22,6 @@ class LeNet(nn.Module):
         self.act_4 = nn.ReLU()
 
         self.fc_2 = nn.Linear(84, 10)
-
         self.feedback_layer = nn.Sequential(
             nn.AvgPool2d(7, 7),
             nn.Flatten(),
@@ -35,6 +35,7 @@ class LeNet(nn.Module):
         )
 
     def forward_convolutions(self, feature_maps, use_feedback):
+        """Conv layers; optionally returns auxiliary outputs from pool layers."""
         out_feedback_1, out_feedback_2 = None, None
         out = self.pool_1(self.act_1(self.conv_1(feature_maps)))
         if use_feedback:
@@ -46,10 +47,12 @@ class LeNet(nn.Module):
         return out, out_feedback_1, out_feedback_2
 
     def forward_dense_layers(self, flat_feature_vec):
+        """FC layers: 120 -> 84 -> 10."""
         out = self.act_4(self.fc_1(flat_feature_vec))
         return self.fc_2(out)
 
     def forward(self, imgs, use_feedback=False):
+        """Forward pass; use_feedback=True returns auxiliary outputs for Choice Task 4."""
         out, out_feedback_1, out_feedback_2 = self.forward_convolutions(imgs, use_feedback)
         out = torch.flatten(out, 1)
         out = self.forward_dense_layers(out)
@@ -58,6 +61,7 @@ class LeNet(nn.Module):
         return out
 
     def get_embeddings(self, imgs):
+        """Returns 84-dim embeddings (fc_1 output) for t-SNE or similar."""
         out, _, _ = self.forward_convolutions(imgs, use_feedback=False)
         out = torch.flatten(out, 1)
         embeddings = self.act_4(self.fc_1(out))
@@ -65,6 +69,7 @@ class LeNet(nn.Module):
 
 
 class LeNetVariant1(LeNet):
+    """Adds 3x3 conv before first layer."""
     def __init__(self):
         super().__init__(input_channels=6)
         self.conv_0 = nn.Conv2d(3, 6, 3, padding=1)
@@ -76,6 +81,7 @@ class LeNetVariant1(LeNet):
 
 
 class LeNetVariant2(LeNetVariant1):
+    """Adds dropout before final FC layer."""
     def __init__(self):
         super().__init__()
         self.dropout = nn.Dropout(p=0.5)
@@ -87,24 +93,28 @@ class LeNetVariant2(LeNetVariant1):
 
 
 class CIFAR100LeNet(LeNet):
+    """LeNet with 20 outputs for CIFAR-100 coarse classes."""
     def __init__(self):
         super().__init__()
         self.fc_2 = nn.Linear(84, 20)
 
 
 class CIFAR100Variant1(LeNetVariant1):
+    """Variant1 with 20 outputs for CIFAR-100 coarse."""
     def __init__(self):
         super().__init__()
         self.fc_2 = nn.Linear(84, 20)
 
 
 class CIFAR100Variant2(LeNetVariant2):
+    """Variant2 with 20 outputs for CIFAR-100 coarse."""
     def __init__(self):
         super().__init__()
         self.fc_2 = nn.Linear(84, 20)
 
 
 def init_weights(layer):
+    """Kaiming uniform for Conv/Linear, zeros for bias."""
     if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
         nn.init.kaiming_uniform_(layer.weight, nonlinearity='relu')
         if layer.bias is not None:
@@ -112,6 +122,7 @@ def init_weights(layer):
 
 
 def init_model(model_class=LeNet):
+    """Creates model and applies init_weights."""
     model = model_class()
     model.apply(init_weights)
     return model

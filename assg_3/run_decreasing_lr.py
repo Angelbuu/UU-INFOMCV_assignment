@@ -6,7 +6,7 @@ from train import train, evaluate
 
 
 def main():
-    """CHOICE 1: LR schedule (halve every 5 epochs), plot, compare to baseline."""
+    """Runs CHOICE 1: trains LeNet with and without LR schedule, plots LR over time, compares test accuracy."""
     cif_ten_train, cif_ten_val, test_data = load_data(val_set_ratio=0.15)
 
     # baseline: no schedule
