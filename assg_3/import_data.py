@@ -5,6 +5,19 @@ from torchvision.datasets import CIFAR10 as CIF_TEN, CIFAR100 as CIF_HUNDRED
 from torchvision.transforms import ToTensor
 from sklearn.model_selection import train_test_split
 
+CIFAR10_CLASSES = [
+    "airplane",
+    "automobile",
+    "bird",
+    "cat",
+    "deer",
+    "dog",
+    "frog",
+    "horse",
+    "ship",
+    "truck"
+]
+
 
 class CIFAR100Coarse(CIF_HUNDRED):
     def __init__(self, *args, **kwargs):
@@ -21,7 +34,6 @@ class CIFAR100Coarse(CIF_HUNDRED):
 
 
 def train_validation_split(dataset, val_set_ratio):
-    # 15% val: enough samples for reliable eval (~7.5k for CIFAR-10) without losing too much train data
     labels = dataset.targets
     indices = list(range(len(dataset)))
     train_idx, val_idx = train_test_split(indices, test_size=val_set_ratio, stratify=labels)
