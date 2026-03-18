@@ -191,11 +191,11 @@ def test_set_results(results, best_model, best_name, cif_10_pretrained, test_dat
     acc_best, preds_best, lbls = evaluate(best_model, test_data)
     acc_pre, preds_pre, _ = evaluate(cif_10_pretrained, test_data)
 
-    print('\n--- Performance table (last epoch) ---')
+    print('\nPerformance table (last epoch)')
     for name, tl, ta, vl, va in results:
         print(f'{name}: train loss {tl:.2f} acc {ta:.1f}%  val loss {vl:.2f} acc {va:.1f}%')
 
-    print('\n--- Test set comparison ---')
+    print('\nTest set comparison')
     print(f'{best_name}: {acc_best:.1f}%')
     print(f'CIFAR10_pretrained: {acc_pre:.1f}%')
 
