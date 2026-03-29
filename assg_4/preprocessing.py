@@ -102,8 +102,8 @@ def prepare_datasets():
     train_set, val_set, test_set = split_data(dataset, 0.2, 0.2)
 
     train_dataloader = DataLoader(train_set, batch_size=4, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
-    val_dataloader = DataLoader(train_set, batch_size=4, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
-    test_dataloader = DataLoader(train_set, batch_size=4, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
+    val_dataloader = DataLoader(val_set, batch_size=4, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
+    test_dataloader = DataLoader(test_set, batch_size=4, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
 
     return train_dataloader, val_dataloader, test_dataloader
 
