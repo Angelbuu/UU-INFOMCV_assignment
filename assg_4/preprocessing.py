@@ -15,6 +15,7 @@ PATH = kagglehub.dataset_download("andrewmvd/dog-and-cat-detection")
 IMG_DIR = os.path.join(PATH, "images")
 ANNOTATION_DIR = os.path.join(PATH, 'annotations')
 INPUT_IMG_SIZE = 112
+GRID_SIZE = 7
 
 
 class CatDogDataset(Dataset):
@@ -64,13 +65,33 @@ class CatDogDataset(Dataset):
         scaler_x = width / self.input_img_size
         scaler_y = height / self.input_img_size
 
+        target = torch.zeros((7, 7, 7))
+
         bboxes = []
         for obj in objects:
             xmin = obj['bbox'][0] / scaler_x
             ymin = obj['bbox'][1] / scaler_y
             xmax = obj['bbox'][2] / scaler_x
             ymax = obj['bbox'][3] / scaler_y
-            bboxes.append([xmin, ymin, xmax, ymax])  # in your assignment 4, you need to convert bbox into [x, y, w, h] and value range [0, 1]
+            bboxes.append([xmin, ymin, xmax, ymax])
+
+            xmin, ymin, xmax, ymax = obj['bbox']
+            label = obj['label']
+
+            x_center = (xmin + xmax) / 2 / width
+            y_center = (ymin + ymax) / 2 / height
+            w = (xmax - xmin) / width
+            h = (ymax - ymin) / height
+
+            grid_x = int(x_center * GRID_SIZE)
+            grid_y = int(y_center * GRID_SIZE)
+
+            target[grid_y, grid_x, 0] = x_center * GRID_SIZE - grid_x
+            target[grid_y, grid_x, 1] = y_center * GRID_SIZE - grid_y
+            target[grid_y, grid_x, 2] = w
+            target[grid_y, grid_x, 3] = h
+            target[grid_y, grid_x, 4] = 1
+            target[grid_y, grid_x, 5 + label] = 1
 
         bboxes = torch.tensor(bboxes, dtype=torch.float32)
         labels = torch.tensor([obj["label"] for obj in objects], dtype=torch.int64)
@@ -78,7 +99,7 @@ class CatDogDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image, bboxes, labels
+        return image, bboxes, labels, target
 
 
 def split_data(dataset, test_ratio, val_ratio):
@@ -97,7 +118,7 @@ def split_data(dataset, test_ratio, val_ratio):
 
 
 def visualize_batch(dataloader):
-    images, bboxes, labels = next(iter(dataloader))
+    images, bboxes, labels, targets = next(iter(dataloader))
     fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
 
     if len(images) == 1:
