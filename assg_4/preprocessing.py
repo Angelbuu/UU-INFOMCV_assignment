@@ -45,11 +45,6 @@ class CatDogDataset(Dataset):
             label = self.label_map.get(name, -1)  # Default to -1 if unknown label
             objects.append({"label": label, "bbox": [xmin, ymin, xmax, ymax]})
 
-        if len(objects) > 1:
-            print(f'{len(objects)} objects', end=': ')
-            [print(x['label'], end=' ') for x in objects]
-            print()
-
         return width, height, objects
 
     def __len__(self):
@@ -140,6 +135,14 @@ def visualize_batch(dataloader):
     plt.show()
 
 
+def yolo_collate_fn(batch):
+    images = torch.stack([item[0] for item in batch])  # (B, C, H, W)
+    bboxes = [item[1] for item in batch]  # keep list for visualization
+    labels = [item[2] for item in batch]  # keep list for visualization
+    targets = torch.stack([item[3] for item in batch])  # (B, 7, 7, 7)
+    return images, bboxes, labels, targets
+
+
 def prepare_datasets(batch_size=4):
     transform = T.Compose([
         T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
@@ -152,16 +155,13 @@ def prepare_datasets(batch_size=4):
                             transform=transform)
     train_set, val_set, test_set = split_data(dataset, 0.2, 0.2)
 
-    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
-    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
-    test_dataloader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
+    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=yolo_collate_fn)
+    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
+    test_dataloader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
 
     return train_dataloader, val_dataloader, test_dataloader
 
 
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = prepare_datasets()
-    print(len(train_loader.dataset))
-    print(len(val_loader.dataset))
-    print(len(test_loader.dataset))
     visualize_batch(train_loader)
