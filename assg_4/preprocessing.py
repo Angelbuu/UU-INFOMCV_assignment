@@ -7,6 +7,8 @@ import torchvision.transforms as T
 from torch.utils.data import Dataset, DataLoader, Subset
 from PIL import Image
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 PATH = kagglehub.dataset_download("andrewmvd/dog-and-cat-detection")
@@ -41,6 +43,11 @@ class CatDogDataset(Dataset):
 
             label = self.label_map.get(name, -1)  # Default to -1 if unknown label
             objects.append({"label": label, "bbox": [xmin, ymin, xmax, ymax]})
+
+        if len(objects) > 1:
+            print(f'{len(objects)} objects', end=': ')
+            [print(x['label'], end=' ') for x in objects]
+            print()
 
         return width, height, objects
 
@@ -89,7 +96,30 @@ def split_data(dataset, test_ratio, val_ratio):
     return train_data, val_data, test_data
 
 
-def prepare_datasets():
+def visualize_batch(dataloader):
+    images, bboxes, labels = next(iter(dataloader))
+    fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
+
+    if len(images) == 1:
+        axes = [axes]
+
+    for i, (img, bbox, label) in enumerate(zip(images, bboxes, labels)):
+        img = img.permute(1, 2, 0).numpy()
+        axes[i].imshow(img)
+
+        for box, lbl in zip(bbox, label):
+            xmin, ymin, xmax, ymax = box.tolist()
+            rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                                     linewidth=2, edgecolor='r', facecolor='none')
+            axes[i].add_patch(rect)
+            axes[i].text(xmin, ymin - 5, f'Label: {lbl.item()}', color='red', fontsize=10,
+                         bbox=dict(facecolor='white', alpha=0.5))
+        axes[i].axis('off')
+
+    plt.show()
+
+
+def prepare_datasets(batch_size=4):
     transform = T.Compose([
         T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
         T.ToTensor()
@@ -101,12 +131,16 @@ def prepare_datasets():
                             transform=transform)
     train_set, val_set, test_set = split_data(dataset, 0.2, 0.2)
 
-    train_dataloader = DataLoader(train_set, batch_size=4, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
-    val_dataloader = DataLoader(val_set, batch_size=4, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
-    test_dataloader = DataLoader(test_set, batch_size=4, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
+    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x)))
+    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
+    test_dataloader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=lambda x: tuple(zip(*x)))
 
     return train_dataloader, val_dataloader, test_dataloader
 
 
 if __name__ == '__main__':
     train_loader, val_loader, test_loader = prepare_datasets()
+    print(len(train_loader.dataset))
+    print(len(val_loader.dataset))
+    print(len(test_loader.dataset))
+    visualize_batch(train_loader)
