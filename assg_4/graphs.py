@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from sklearn.metrics import confusion_matrix
 
 CLASS_NAMES = ["cat", "dog"]
 
@@ -49,7 +48,7 @@ def plot_confusion_matrix(confusion, class_names=None, title="Confusion Matrix")
             ax.text(
                 j, i, int(confusion[i, j]),
                 ha="center", va="center",
-                color="white" if confusion[i, j] > confusion.max() / 2 else "black"
+                color="black" if confusion[i, j] > confusion.max() / 2 else "white"
             )
 
     # Axis labels
@@ -64,5 +63,74 @@ def plot_confusion_matrix(confusion, class_names=None, title="Confusion Matrix")
     ax.set_title(title)
 
     plt.colorbar(im)
+    plt.tight_layout()
+    plt.show()
+
+
+def visualize_predictions(model, dataloader, threshold=0.5, device="cpu"):
+    model.eval()
+
+    images, bboxes_list, labels_list, _ = next(iter(dataloader))
+    images = images.to(device)
+
+    with torch.no_grad():
+        preds = model.predict(images, threshold)
+
+    fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
+
+    if len(images) == 1:
+        axes = [axes]
+
+    for i in range(len(images)):
+        img = images[i].cpu().permute(1, 2, 0).numpy()
+        axes[i].imshow(img)
+
+        # --- Ground truth (RED) ---
+        for box, lbl in zip(bboxes_list[i], labels_list[i]):
+            xmin, ymin, xmax, ymax = box.tolist()
+
+            rect = patches.Rectangle(
+                (xmin, ymin), xmax - xmin, ymax - ymin,
+                linewidth=2, edgecolor='red', facecolor='none'
+            )
+            axes[i].add_patch(rect)
+
+            axes[i].text(
+                xmin, ymin - 5,
+                f"GT: {CLASS_NAMES[lbl.item()]}",
+                color='red',
+                fontsize=10,
+                bbox=dict(facecolor='white', alpha=0.5)
+            )
+
+        # --- Predictions (GREEN) ---
+        pred = preds[i]
+
+        for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
+            h, w, _ = img.shape
+            xmin, ymin, xmax, ymax = box.tolist()
+
+            # scale to image size
+            xmin *= w
+            xmax *= w
+            ymin *= h
+            ymax *= h
+
+            rect = patches.Rectangle(
+                (xmin, ymin), xmax - xmin, ymax - ymin,
+                linewidth=2, edgecolor='green', facecolor='none'
+            )
+            axes[i].add_patch(rect)
+
+            axes[i].text(
+                xmin, ymax + 5,
+                f"Pred: {CLASS_NAMES[lbl.item()]} ({score:.2f})",
+                color='green',
+                fontsize=10,
+                bbox=dict(facecolor='white', alpha=0.5)
+            )
+
+        axes[i].axis('off')
+
     plt.tight_layout()
     plt.show()

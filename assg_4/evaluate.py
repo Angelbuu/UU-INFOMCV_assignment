@@ -1,100 +1,30 @@
 import torch
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
 from model import Model
 from preprocessing import prepare_datasets, GRID_SIZE, INPUT_IMG_SIZE
-from graphs import plot_confusion_matrix
-
-CLASS_NAMES = ["cat", "dog"]
+from graphs import plot_confusion_matrix, visualize_predictions
 
 
-def decode_predictions(output, threshold, grid_size=GRID_SIZE):
-    """
-    output: (7, 7, 7) tensor for ONE image
-    returns: dict with boxes, scores, labels
-    """
-
-    boxes = []
-    scores = []
-    labels = []
-
-    for i in range(grid_size):
-        for j in range(grid_size):
-            cell = output[i, j]
-
-            conf = cell[4].item()
-
-            # Apply objectness threshold
-            if conf < threshold:
-                continue
-
-            x, y, w, h = cell[0:4]
-            class_probs = cell[5:]
-
-            cls = torch.argmax(class_probs).item()
-            cls_score = class_probs[cls].item()
-
-            score = conf * cls_score  # YOLO confidence
-
-            # Convert to image-relative coordinates
-            x_center = (j + x.item()) / grid_size
-            y_center = (i + y.item()) / grid_size
-
-            xmin = x_center - w.item() / 2
-            ymin = y_center - h.item() / 2
-            xmax = x_center + w.item() / 2
-            ymax = y_center + h.item() / 2
-
-            # Clamp to [0, 1]
-            xmin = max(0, xmin)
-            ymin = max(0, ymin)
-            xmax = min(1, xmax)
-            ymax = min(1, ymax)
-
-            boxes.append([xmin, ymin, xmax, ymax])
-            scores.append(score)
-            labels.append(cls)
-
-    if len(boxes) == 0:
-        return {
-            "boxes": torch.zeros((0, 4)),
-            "scores": torch.zeros((0,)),
-            "labels": torch.zeros((0,), dtype=torch.int64),
-        }
-
-    return {
-        "boxes": torch.tensor(boxes, dtype=torch.float32),
-        "scores": torch.tensor(scores, dtype=torch.float32),
-        "labels": torch.tensor(labels, dtype=torch.int64),
-    }
-
-
-def get_predictions(model, dataloader, threshold):
+def get_predictions(model, dataloader, threshold, device="cpu"):
     model.eval()
 
     preds = []
     targets = []
 
     with torch.no_grad():
-        for images, bboxes_list, labels_list, target_tensor in dataloader:
-            outputs = model(images)
-            outputs = outputs.view(-1, GRID_SIZE, GRID_SIZE, 7)
+        for images, bboxes_list, labels_list, _ in dataloader:
+            images = images.to(device)
 
-            for i in range(images.shape[0]):
-                output = outputs[i].cpu()
+            # --- Predictions (already decoded!) ---
+            batch_preds = model.predict(images, threshold)
 
-                # --- Predictions ---
-                pred_dict = decode_predictions(output, threshold)
-                preds.append(pred_dict)
+            for i in range(len(images)):
+                preds.append(batch_preds[i])
 
                 # --- Targets ---
-                bboxes = bboxes_list[i]  # (N, 4)
-                labels = labels_list[i]  # (N,)
-
-                # Normalize GT boxes to [0,1]
-                img_size = INPUT_IMG_SIZE
+                bboxes = bboxes_list[i]
+                labels = labels_list[i]
 
                 if len(bboxes) == 0:
                     target_dict = {
@@ -102,7 +32,8 @@ def get_predictions(model, dataloader, threshold):
                         "labels": torch.zeros((0,), dtype=torch.int64),
                     }
                 else:
-                    boxes = bboxes / img_size  # normalize
+                    # normalize to [0,1]
+                    boxes = bboxes / INPUT_IMG_SIZE
                     target_dict = {
                         "boxes": boxes,
                         "labels": labels,
@@ -261,76 +192,6 @@ def evaluate_thresholds(model, dataloader, thresholds):
         })
 
     return results
-
-
-def visualize_predictions(model, dataloader, threshold=0.5, device="cpu"):
-    model.eval()
-
-    images, bboxes_list, labels_list, _ = next(iter(dataloader))
-    images = images.to(device)
-
-    with torch.no_grad():
-        outputs = model(images)
-        outputs = outputs.view(-1, 7, 7, 7)
-
-    fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
-
-    if len(images) == 1:
-        axes = [axes]
-
-    for i in range(len(images)):
-        img = images[i].cpu().permute(1, 2, 0).numpy()
-        axes[i].imshow(img)
-
-        # --- Ground truth (RED) ---
-        for box, lbl in zip(bboxes_list[i], labels_list[i]):
-            xmin, ymin, xmax, ymax = box.tolist()
-
-            rect = patches.Rectangle(
-                (xmin, ymin), xmax - xmin, ymax - ymin,
-                linewidth=2, edgecolor='red', facecolor='none'
-            )
-            axes[i].add_patch(rect)
-
-            axes[i].text(
-                xmin, ymin - 5,
-                f"GT: {CLASS_NAMES[lbl.item()]}",
-                color='red',
-                fontsize=10,
-                bbox=dict(facecolor='white', alpha=0.5)
-            )
-
-        # --- Predictions (GREEN) ---
-        pred = decode_predictions(outputs[i].cpu(), threshold)
-
-        for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
-            # convert from normalized [0,1] → image pixels
-            h, w, _ = img.shape
-            xmin, ymin, xmax, ymax = box.tolist()
-
-            xmin *= w
-            xmax *= w
-            ymin *= h
-            ymax *= h
-
-            rect = patches.Rectangle(
-                (xmin, ymin), xmax - xmin, ymax - ymin,
-                linewidth=2, edgecolor='green', facecolor='none'
-            )
-            axes[i].add_patch(rect)
-
-            axes[i].text(
-                xmin, ymax + 5,
-                f"Pred: {CLASS_NAMES[lbl.item()]} ({score:.2f})",
-                color='green',
-                fontsize=10,
-                bbox=dict(facecolor='white', alpha=0.5)
-            )
-
-        axes[i].axis('off')
-
-    plt.tight_layout()
-    plt.show()
 
 
 def small_test(model, val_data):

@@ -43,6 +43,75 @@ class Model(nn.Module):
         out = tf.sigmoid(self.out(out))
         return out
 
+    def decode_predictions(self, outputs, threshold, grid_size=7):
+        """
+        outputs: (B, 343) or (B, 7, 7, 7)
+        returns: list of dicts (one per image)
+        """
+
+        if outputs.dim() == 2:
+            outputs = outputs.view(-1, grid_size, grid_size, 7)
+
+        batch_preds = []
+
+        for b in range(outputs.shape[0]):
+            output = outputs[b]
+
+            boxes = []
+            scores = []
+            labels = []
+
+            for i in range(grid_size):
+                for j in range(grid_size):
+                    cell = output[i, j]
+
+                    conf = cell[4].item()
+                    if conf < threshold:
+                        continue
+
+                    x, y, w, h = cell[0:4]
+                    class_probs = cell[5:]
+
+                    cls = torch.argmax(class_probs).item()
+                    cls_score = class_probs[cls].item()
+                    score = conf * cls_score
+
+                    # Convert to normalized coords
+                    x_center = (j + x.item()) / grid_size
+                    y_center = (i + y.item()) / grid_size
+
+                    xmin = max(0, x_center - w.item() / 2)
+                    ymin = max(0, y_center - h.item() / 2)
+                    xmax = min(1, x_center + w.item() / 2)
+                    ymax = min(1, y_center + h.item() / 2)
+
+                    boxes.append([xmin, ymin, xmax, ymax])
+                    scores.append(score)
+                    labels.append(cls)
+
+            if len(boxes) == 0:
+                pred = {
+                    "boxes": torch.zeros((0, 4)),
+                    "scores": torch.zeros((0,)),
+                    "labels": torch.zeros((0,), dtype=torch.int64),
+                }
+            else:
+                pred = {
+                    "boxes": torch.tensor(boxes, dtype=torch.float32),
+                    "scores": torch.tensor(scores, dtype=torch.float32),
+                    "labels": torch.tensor(labels, dtype=torch.int64),
+                }
+
+            batch_preds.append(pred)
+
+        return batch_preds
+
+    def predict(self, images, threshold=0.5):
+        self.eval()
+        with torch.no_grad():
+            outputs = self(images)
+            return self.decode_predictions(outputs, threshold)
+
 
 if __name__ == '__main__':
     summary(Model(), input_size=(1, 3, 112, 112), verbose=1)
