@@ -1,11 +1,16 @@
 import torch
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 from model import Model
 from preprocessing import prepare_datasets, GRID_SIZE, INPUT_IMG_SIZE
+from graphs import plot_confusion_matrix
+
+CLASS_NAMES = ["cat", "dog"]
 
 
-def decode_predictions(output, threshold, grid_size=7):
+def decode_predictions(output, threshold, grid_size=GRID_SIZE):
     """
     output: (7, 7, 7) tensor for ONE image
     returns: dict with boxes, scores, labels
@@ -192,8 +197,10 @@ def compute_f1(preds, targets, iou_threshold=0.5, num_classes=2):
 
     return avg_f1, f1_scores
 
+
 def compute_confusion_matrix(preds, targets, iou_threshold=0.5, num_classes=2):
-    confusion = torch.zeros((num_classes, num_classes), dtype=torch.int32)
+    # +1 for background
+    confusion = torch.zeros((num_classes + 1, num_classes + 1), dtype=torch.int32)
 
     for pred, target in zip(preds, targets):
         pred_boxes = pred["boxes"]
@@ -204,6 +211,7 @@ def compute_confusion_matrix(preds, targets, iou_threshold=0.5, num_classes=2):
 
         matched_gt = set()
 
+        # --- Match predictions ---
         for p_box, p_label in zip(pred_boxes, pred_labels):
             best_iou = 0
             best_gt_idx = -1
@@ -224,6 +232,14 @@ def compute_confusion_matrix(preds, targets, iou_threshold=0.5, num_classes=2):
 
                 confusion[true_label, pred_label] += 1
                 matched_gt.add(best_gt_idx)
+            else:
+                # False Positive → predicted something that doesn't exist
+                confusion[num_classes, p_label.item()] += 1
+
+        # --- Count False Negatives ---
+        for i, g_label in enumerate(gt_labels):
+            if i not in matched_gt:
+                confusion[g_label.item(), num_classes] += 1
 
     return confusion
 
@@ -247,6 +263,76 @@ def evaluate_thresholds(model, dataloader, thresholds):
     return results
 
 
+def visualize_predictions(model, dataloader, threshold=0.5, device="cpu"):
+    model.eval()
+
+    images, bboxes_list, labels_list, _ = next(iter(dataloader))
+    images = images.to(device)
+
+    with torch.no_grad():
+        outputs = model(images)
+        outputs = outputs.view(-1, 7, 7, 7)
+
+    fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
+
+    if len(images) == 1:
+        axes = [axes]
+
+    for i in range(len(images)):
+        img = images[i].cpu().permute(1, 2, 0).numpy()
+        axes[i].imshow(img)
+
+        # --- Ground truth (RED) ---
+        for box, lbl in zip(bboxes_list[i], labels_list[i]):
+            xmin, ymin, xmax, ymax = box.tolist()
+
+            rect = patches.Rectangle(
+                (xmin, ymin), xmax - xmin, ymax - ymin,
+                linewidth=2, edgecolor='red', facecolor='none'
+            )
+            axes[i].add_patch(rect)
+
+            axes[i].text(
+                xmin, ymin - 5,
+                f"GT: {CLASS_NAMES[lbl.item()]}",
+                color='red',
+                fontsize=10,
+                bbox=dict(facecolor='white', alpha=0.5)
+            )
+
+        # --- Predictions (GREEN) ---
+        pred = decode_predictions(outputs[i].cpu(), threshold)
+
+        for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
+            # convert from normalized [0,1] → image pixels
+            h, w, _ = img.shape
+            xmin, ymin, xmax, ymax = box.tolist()
+
+            xmin *= w
+            xmax *= w
+            ymin *= h
+            ymax *= h
+
+            rect = patches.Rectangle(
+                (xmin, ymin), xmax - xmin, ymax - ymin,
+                linewidth=2, edgecolor='green', facecolor='none'
+            )
+            axes[i].add_patch(rect)
+
+            axes[i].text(
+                xmin, ymax + 5,
+                f"Pred: {CLASS_NAMES[lbl.item()]} ({score:.2f})",
+                color='green',
+                fontsize=10,
+                bbox=dict(facecolor='white', alpha=0.5)
+            )
+
+        axes[i].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+
 def small_test(model, val_data):
     preds, targets = get_predictions(model, val_data, threshold=0.5)
 
@@ -255,7 +341,7 @@ def small_test(model, val_data):
 
 
 if __name__ == '__main__':
-    train_data, val_data, test_data = prepare_datasets(batch_size=32)
+    train_data, val_data, test_data = prepare_datasets(batch_size=4)
     model = Model()
     model.load_state_dict(torch.load('checkpoints/yolo.pt'))
     small_test(model, val_data)
@@ -268,4 +354,9 @@ if __name__ == '__main__':
     preds, targets = get_predictions(model, val_data, best_threshold)
     conf_matrix = compute_confusion_matrix(preds, targets)
 
-    print(conf_matrix)
+    print('mAP:')
+    for result in results:
+        print('Threshold:', result['threshold'], 'mAP:', result['mAP'])
+    plot_confusion_matrix(conf_matrix)
+
+    visualize_predictions(model, val_data)
