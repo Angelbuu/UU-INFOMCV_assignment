@@ -10,7 +10,6 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-
 PATH = kagglehub.dataset_download("andrewmvd/dog-and-cat-detection")
 IMG_DIR = os.path.join(PATH, "images")
 ANNOTATION_DIR = os.path.join(PATH, 'annotations')
@@ -20,16 +19,19 @@ ENTRIES_PER_GRID = 7
 
 
 class CatDogDataset(Dataset):
+    """(Modified from starting code) Subclass inheriting torch Dataset for Cat and Dog detection."""
     def __init__(self, img_dir, ann_dir, input_img_size, transform=None):
+        """Initializes dataset with paths to files, label map, transform function and resized input image size."""
         self.img_dir = img_dir
         self.ann_dir = ann_dir
         self.transform = transform
         self.img_files = sorted(glob.glob(os.path.join(img_dir, "*.png")))
         self.ann_files = sorted(glob.glob(os.path.join(ann_dir, "*.xml")))
-        self.label_map = {"cat": 0, "dog": 1}  # Label mapping
+        self.label_map = {"cat": 0, "dog": 1}
         self.input_img_size = input_img_size
 
     def parse_annotation(self, ann_path):
+        """Returns width and height of the image and objects with their labels and bounding boxes in that image."""
         tree = ET.parse(ann_path)
         root = tree.getroot()
         width = int(root.find("size/width").text)
@@ -49,9 +51,15 @@ class CatDogDataset(Dataset):
         return width, height, objects
 
     def __len__(self):
+        """Returns the number of samples in a dataset."""
         return len(self.img_files)
 
     def __getitem__(self, idx):
+        """
+        Returns the indexed image, objects' bounding boxes and labels and a target - raw tensor for ground truth
+        formatted to compare with the output of yolo (A 7x7 grid of entries containing (normalized) bounding boxes,
+        confidence and if object classes are present, in each grid cell).
+        """
         img_path = self.img_files[idx]
         ann_path = self.ann_files[idx]
 
@@ -114,6 +122,7 @@ def split_data(dataset, test_ratio, val_ratio):
 
 
 def visualize_batch(dataloader):
+    """(Function from starting code): visualizes a  batch of images with their bounding boxes and labels."""
     images, bboxes, labels, targets = next(iter(dataloader))
     fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
 
@@ -146,6 +155,7 @@ def yolo_collate_fn(batch):
 
 
 def prepare_datasets(batch_size=4):
+    """Prepares dataloaders for train, validation and test sets."""
     transform = T.Compose([
         T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
         T.ToTensor()
@@ -165,5 +175,6 @@ def prepare_datasets(batch_size=4):
 
 
 if __name__ == '__main__':
+    """Check if preparing datasets works and visualize a batch of training data."""
     train_loader, val_loader, test_loader = prepare_datasets()
     visualize_batch(train_loader)
