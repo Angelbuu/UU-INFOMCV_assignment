@@ -1,10 +1,9 @@
 import os
 import torch
-import torch.nn as nn
 from torch.optim import Adam
 
 from model import Model
-from preprocessing import prepare_datasets, GRID_SIZE
+from preprocessing import prepare_datasets, GRID_SIZE, ENTRIES_PER_GRID
 from graphs import plot_losses
 
 WEIGHT_COORD = 5
@@ -14,7 +13,7 @@ WEIGHT_NOOBJ = 0.5
 def minibatch_forward_pass(model, minibatch):
     images, _, _, targets = minibatch
     outputs = model(images)
-    outputs = outputs.view(-1, GRID_SIZE, GRID_SIZE, 7)
+    outputs = outputs.view(-1, GRID_SIZE, GRID_SIZE, ENTRIES_PER_GRID)
 
     obj_mask = targets[..., 4] == 1  # shape (B,7,7)
     noobj_mask = targets[..., 4] == 0

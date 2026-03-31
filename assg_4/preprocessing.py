@@ -16,6 +16,7 @@ IMG_DIR = os.path.join(PATH, "images")
 ANNOTATION_DIR = os.path.join(PATH, 'annotations')
 INPUT_IMG_SIZE = 112
 GRID_SIZE = 7
+ENTRIES_PER_GRID = 7
 
 
 class CatDogDataset(Dataset):
@@ -60,7 +61,7 @@ class CatDogDataset(Dataset):
         scaler_x = width / self.input_img_size
         scaler_y = height / self.input_img_size
 
-        target = torch.zeros((7, 7, 7))
+        target = torch.zeros((GRID_SIZE, GRID_SIZE, ENTRIES_PER_GRID))
 
         bboxes = []
         for obj in objects:

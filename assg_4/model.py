@@ -3,10 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as tf
 from torchinfo import summary
 
+from preprocessing import GRID_SIZE, ENTRIES_PER_GRID
+
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, grid_size=GRID_SIZE, entries_per_grid=ENTRIES_PER_GRID):
         super().__init__()
+        self.grid_size = grid_size
+        self.entries_per_grid = entries_per_grid
         # out: 112x112x3
         self.conv_1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
         self.batch_norm_1 = nn.BatchNorm2d(16)
@@ -31,7 +35,8 @@ class Model(nn.Module):
         # out: 1568
         self.fc = nn.Linear(1568, 512)
         self.dropout = nn.Dropout(p=0.5)
-        self.out = nn.Linear(512, 343)
+        self.out = nn.Linear(512, self.grid_size * self.grid_size * self.entries_per_grid)
+        # out: 343
 
     def forward(self, imgs):
         out = self.pool_1(tf.relu(self.batch_norm_1(self.conv_1(imgs))))
@@ -43,14 +48,14 @@ class Model(nn.Module):
         out = tf.sigmoid(self.out(out))
         return out
 
-    def decode_predictions(self, outputs, threshold, grid_size=7):
+    def decode_predictions(self, outputs, threshold):
         """
         outputs: (B, 343) or (B, 7, 7, 7)
         returns: list of dicts (one per image)
         """
 
         if outputs.dim() == 2:
-            outputs = outputs.view(-1, grid_size, grid_size, 7)
+            outputs = outputs.view(-1, self.grid_size, self.grid_size, self.entries_per_grid)
 
         batch_preds = []
 
@@ -61,8 +66,8 @@ class Model(nn.Module):
             scores = []
             labels = []
 
-            for i in range(grid_size):
-                for j in range(grid_size):
+            for i in range(self.grid_size):
+                for j in range(self.grid_size):
                     cell = output[i, j]
 
                     conf = cell[4].item()
@@ -77,8 +82,8 @@ class Model(nn.Module):
                     score = conf * cls_score
 
                     # Convert to normalized coords
-                    x_center = (j + x.item()) / grid_size
-                    y_center = (i + y.item()) / grid_size
+                    x_center = (j + x.item()) / self.grid_size
+                    y_center = (i + y.item()) / self.grid_size
 
                     xmin = max(0, x_center - w.item() / 2)
                     ymin = max(0, y_center - h.item() / 2)
