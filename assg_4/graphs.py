@@ -32,6 +32,7 @@ def plot_confusion_matrix(confusion, title="Confusion Matrix"):
     labels = CLASS_NAMES + ["Background"]
 
     fig, ax = plt.subplots(figsize=(6, 6))
+    ax.imshow(confusion)
 
     for i in range(confusion.shape[0]):
         for j in range(confusion.shape[1]):
@@ -88,7 +89,7 @@ def visualize_predictions(model, dataloader, threshold=0.5):
 
         pred = preds[i]
 
-        for box, score, lbl in zip(pred["boxes"], pred["confidences"], pred["labels"]):
+        for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
             h, w, _ = img.shape
             xmin, ymin, xmax, ymax = box.tolist()
 

@@ -3,31 +3,27 @@ from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
 def compute_iou(box1, box2):
-    """
-    box: [xmin, ymin, xmax, ymax]
-    """
+    """Computes intersection over union."""
     x1 = max(box1[0], box2[0])
     y1 = max(box1[1], box2[1])
     x2 = min(box1[2], box2[2])
     y2 = min(box1[3], box2[3])
 
-    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    intersection = max(0, x2 - x1) * max(0, y2 - y1)
 
     area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
     area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union = area1 + area2 - intersection
 
-    union = area1 + area2 - inter + 1e-6
-
-    return inter / union
+    return intersection / union
 
 
 def compute_map(preds, targets):
+    """Computes mAP."""
     metric = MeanAveragePrecision()
-
     metric.update(preds, targets)
     result = metric.compute()
-
-    return result["map"].item()
+    return result['map'].item()
 
 
 def compute_f1(preds, targets, iou_threshold=0.5, num_classes=2):
@@ -44,7 +40,6 @@ def compute_f1(preds, targets, iou_threshold=0.5, num_classes=2):
 
         matched_gt = set()
 
-        # --- Match predictions ---
         for p_box, p_label in zip(pred_boxes, pred_labels):
             best_iou = 0
             best_gt_idx = -1
@@ -67,12 +62,10 @@ def compute_f1(preds, targets, iou_threshold=0.5, num_classes=2):
             else:
                 FP[p_label] += 1
 
-        # --- Count FN ---
         for i, g_label in enumerate(gt_labels):
             if i not in matched_gt:
                 FN[g_label] += 1
 
-    # --- Compute F1 per class ---
     f1_scores = []
 
     for c in range(num_classes):
