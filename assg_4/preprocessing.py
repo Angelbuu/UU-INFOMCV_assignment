@@ -137,10 +137,11 @@ def visualize_batch(dataloader):
 
 
 def yolo_collate_fn(batch):
-    images = torch.stack([item[0] for item in batch])  # (B, C, H, W)
-    bboxes = [item[1] for item in batch]  # keep list for visualization
-    labels = [item[2] for item in batch]  # keep list for visualization
-    targets = torch.stack([item[3] for item in batch])  # (B, 7, 7, 7)
+    """Collate functions that stacks images and targets (to prevent an error in a training loop)."""
+    images = torch.stack([item[0] for item in batch])
+    bboxes = [item[1] for item in batch]
+    labels = [item[2] for item in batch]
+    targets = torch.stack([item[3] for item in batch])
     return images, bboxes, labels, targets
 
 

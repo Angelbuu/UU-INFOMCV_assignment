@@ -6,20 +6,18 @@ import matplotlib.patches as patches
 CLASS_NAMES = ["cat", "dog"]
 
 
-def plot_losses(history, title='Training vs Validation', validation=True):
+def plot_losses(history, component: str, y_label='Loss', title='Training vs Validation'):
     """Plots losses over epochs."""
     epochs = range(1, len(history['train']['total']) + 1)
     plt.figure()
 
-    if validation:
-        plt.plot(epochs, history['train']['total'], label='Train')
-        plt.plot(epochs, history['val']['total'], label='Validation')
-    else:
-        for k in ['coord', 'size', 'obj', 'noobj', 'class']:
-            plt.plot(epochs, history['train'][k], label=k)
+    plt.plot(epochs, history['train'][component], label='Train')
+    plt.plot(epochs, history['val'][component], label='Validation')
 
+    y_label = component.capitalize() + ' ' + y_label
+    title = title + ' ' + y_label
     plt.xlabel('Epochs')
-    plt.ylabel('Loss')
+    plt.ylabel(y_label)
     plt.title(title)
     plt.legend()
     plt.grid(True)

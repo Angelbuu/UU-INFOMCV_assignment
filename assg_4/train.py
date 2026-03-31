@@ -44,16 +44,18 @@ def minibatch_forward_pass(model, minibatch):
 
 def validate(model, val_data):
     model.eval()
-    val_loss = 0
+    epoch_sums = {'total': 0, 'coord': 0, 'size': 0, 'obj': 0, 'noobj': 0, 'class': 0}
     num_batches = 0
 
     with torch.no_grad():
         for minibatch in val_data:
             _, bl_components = minibatch_forward_pass(model, minibatch)
-            val_loss += bl_components['total']
+            for k in epoch_sums:
+                epoch_sums[k] += bl_components[k]
             num_batches += 1
 
-    return val_loss / num_batches
+    epoch_avg = {k: v / num_batches for k, v in epoch_sums.items()}
+    return epoch_avg
 
 
 def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, patience=5):
@@ -64,7 +66,7 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
 
     history = {
         'train': {'total': [], 'coord': [], 'size': [], 'obj': [], 'noobj': [], 'class': []},
-        'val': {'total': []}
+        'val': {'total': [], 'coord': [], 'size': [], 'obj': [], 'noobj': [], 'class': []}
     }
 
     for epoch in range(max_epochs):
@@ -83,11 +85,13 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
             num_batches += 1
 
         epoch_avg = {k: v / num_batches for k, v in epoch_sums.items()}
-        val_loss = validate(model, val_data)
+        val_components = validate(model, val_data)
 
         for k in epoch_avg:
             history['train'][k].append(epoch_avg[k])
-        history['val']['total'].append(val_loss)
+            history['val'][k].append(val_components[k])
+
+        val_loss = val_components["total"]
 
         print(
             f'Epoch {epoch + 1} | '
@@ -112,11 +116,11 @@ def main():
 
     train_data, val_data, _ = prepare_datasets(batch_size=32)
     model = Model()
-    model, history = train(model, train_data, val_data, max_epochs=30, patience=3)
+    model, history = train(model, train_data, val_data)
     torch.save(model.state_dict(), 'checkpoints/yolo.pt')
 
-    plot_losses(history)
-    plot_losses(history, title='Train Loss Components', validation=False)
+    for key in history['train'].keys():
+        plot_losses(history, key)
 
 
 if __name__ == '__main__':
