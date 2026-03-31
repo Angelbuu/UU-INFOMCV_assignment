@@ -4,11 +4,11 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from model import Model
-from preprocessing import prepare_datasets
+from preprocessing import prepare_datasets, GRID_SIZE
+from graphs import plot_losses
 
 WEIGHT_COORD = 5
 WEIGHT_NOOBJ = 0.5
-GRID_SIZE = 7
 
 
 def minibatch_forward_pass(model, minibatch):
@@ -33,19 +33,28 @@ def minibatch_forward_pass(model, minibatch):
 
     loss = coord_loss + size_loss + obj_loss + noobj_loss + class_loss
 
-    return loss, loss.item()
+    return loss, {
+        'total': loss.detach().item(),
+        'coord': coord_loss.detach().item(),
+        'size': size_loss.detach().item(),
+        'obj': obj_loss.detach().item(),
+        'noobj': noobj_loss.detach().item(),
+        'class': class_loss.detach().item(),
+    }
 
 
 def validate(model, val_data):
     model.eval()
     val_loss = 0
+    num_batches = 0
 
     with torch.no_grad():
         for minibatch in val_data:
-            _, batch_loss = minibatch_forward_pass(model, minibatch)
-            val_loss += batch_loss
+            _, bl_components = minibatch_forward_pass(model, minibatch)
+            val_loss += bl_components['total']
+            num_batches += 1
 
-    return val_loss
+    return val_loss / num_batches
 
 
 def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, patience=5):
@@ -54,20 +63,38 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
     best_val_loss = float('inf')
     epochs_no_improve = 0
 
+    history = {
+        'train': {'total': [], 'coord': [], 'size': [], 'obj': [], 'noobj': [], 'class': []},
+        'val': {'total': []}
+    }
+
     for epoch in range(max_epochs):
         model.train()
-        epoch_loss = 0
+        epoch_sums = {'total': 0, 'coord': 0, 'size': 0, 'obj': 0, 'noobj': 0, 'class': 0}
+        num_batches = 0
 
         for batch in train_data:
             opt.zero_grad()
-            loss, bl = minibatch_forward_pass(model, batch)
+            loss, bl_components = minibatch_forward_pass(model, batch)
             loss.backward()
             opt.step()
-            epoch_loss += bl
 
+            for k in epoch_sums:
+                epoch_sums[k] += bl_components[k]
+            num_batches += 1
+
+        epoch_avg = {k: v / num_batches for k, v in epoch_sums.items()}
         val_loss = validate(model, val_data)
 
-        print(f'Epoch {epoch + 1}, train loss: {epoch_loss:.2f}, val loss: {val_loss:.2f}')
+        for k in epoch_avg:
+            history['train'][k].append(epoch_avg[k])
+        history['val']['total'].append(val_loss)
+
+        print(
+            f'Epoch {epoch + 1} | '
+            f'Train Loss: {epoch_avg["total"]:.2f} | '
+            f'Val Loss: {val_loss:.2f}'
+        )
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -78,13 +105,19 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
                 print(f'Early stop at epoch {epoch + 1}')
                 break
 
-    return model
+    return model, history
 
 
 def main():
-    train_data, val_data, test_data = prepare_datasets(batch_size=32)
+    os.makedirs('checkpoints', exist_ok=True)
+
+    train_data, val_data, _ = prepare_datasets(batch_size=32)
     model = Model()
-    model = train(model, train_data, val_data, max_epochs=3)
+    model, history = train(model, train_data, val_data, max_epochs=30, patience=3)
+    torch.save(model.state_dict(), 'checkpoints/yolo.pt')
+
+    plot_losses(history)
+    plot_losses(history, title='Train Loss Components', validation=False)
 
 
 if __name__ == '__main__':
