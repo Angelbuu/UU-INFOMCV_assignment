@@ -71,22 +71,25 @@ def small_test(model, val_data):
 
 
 if __name__ == '__main__':
-    train_data, val_data, test_data = prepare_datasets(batch_size=4)
+    datasets = prepare_datasets(batch_size=32)
     model = Model()
     model.load_state_dict(torch.load('checkpoints/yolo.pt'))
-    small_test(model, val_data)
 
-    results = evaluate_thresholds(model, val_data, torch.linspace(0, 1, 20))
+    for dataset in datasets:
+        small_test(model, dataset)
 
-    best = max(results, key=lambda x: x["F1"])
-    best_threshold = best["threshold"]
+        thresholds = torch.linspace(0, 1, 3)
+        results = evaluate_thresholds(model, dataset, thresholds)
 
-    preds, targets = get_predictions(model, val_data, best_threshold)
-    conf_matrix = compute_confusion_matrix(preds, targets)
+        best = max(results, key=lambda x: x["F1"])
+        best_threshold = best["threshold"]
 
-    print('mAP:')
-    for result in results:
-        print('Threshold:', result['threshold'], 'mAP:', result['mAP'])
-    plot_confusion_matrix(conf_matrix)
+        preds, targets = get_predictions(model, dataset, best_threshold)
+        conf_matrix = compute_confusion_matrix(preds, targets)
 
-    visualize_predictions(model, val_data)
+        print('mAP:')
+        for result in results:
+            print('Threshold:', result['threshold'], 'mAP:', result['mAP'])
+        plot_confusion_matrix(conf_matrix)
+
+        visualize_predictions(model, dataset)

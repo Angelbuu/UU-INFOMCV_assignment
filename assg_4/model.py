@@ -7,7 +7,9 @@ from preprocessing import GRID_SIZE, ENTRIES_PER_GRID
 
 
 class Model(nn.Module):
+    """Mini-yolo model class."""
     def __init__(self, grid_size=GRID_SIZE, entries_per_grid=ENTRIES_PER_GRID):
+        """Initializes the architecture for mini-yolo."""
         super().__init__()
         self.grid_size = grid_size
         self.entries_per_grid = entries_per_grid
@@ -39,6 +41,7 @@ class Model(nn.Module):
         # out: 343
 
     def forward(self, imgs):
+        """Returns raw outputs from a batch of images."""
         out = self.pool_1(tf.relu(self.batch_norm_1(self.conv_1(imgs))))
         out = self.pool_2(tf.relu(self.batch_norm_2(self.conv_2(out))))
         out = self.pool_3(tf.relu(self.batch_norm_3(self.conv_3(out))))
@@ -50,20 +53,15 @@ class Model(nn.Module):
 
     def decode_predictions(self, outputs, threshold):
         """
-        outputs: (B, 343) or (B, 7, 7, 7)
-        returns: list of dicts (one per image)
+        Transforms a batch of raw model outputs into a batch (list) of dictionary style predictions
+        based on a confidence/objectness threshold.
         """
-
-        if outputs.dim() == 2:
-            outputs = outputs.view(-1, self.grid_size, self.grid_size, self.entries_per_grid)
-
+        outputs = outputs.view(-1, self.grid_size, self.grid_size, self.entries_per_grid)
         batch_preds = []
 
-        for b in range(outputs.shape[0]):
-            output = outputs[b]
-
+        for output in outputs:
             boxes = []
-            scores = []
+            confidences = []
             labels = []
 
             for i in range(self.grid_size):
@@ -76,12 +74,9 @@ class Model(nn.Module):
 
                     x, y, w, h = cell[0:4]
                     class_probs = cell[5:]
-
                     cls = torch.argmax(class_probs).item()
-                    cls_score = class_probs[cls].item()
-                    score = conf * cls_score
 
-                    # Convert to normalized coords
+                    # convert to image-level bounding boxes in [0, 1]
                     x_center = (j + x.item()) / self.grid_size
                     y_center = (i + y.item()) / self.grid_size
 
@@ -91,10 +86,10 @@ class Model(nn.Module):
                     ymax = min(1, y_center + h.item() / 2)
 
                     boxes.append([xmin, ymin, xmax, ymax])
-                    scores.append(score)
+                    confidences.append(conf)
                     labels.append(cls)
 
-            if len(boxes) == 0:
+            if len(confidences) == 0:  # no predictions :(
                 pred = {
                     "boxes": torch.zeros((0, 4)),
                     "scores": torch.zeros((0,)),
@@ -103,15 +98,18 @@ class Model(nn.Module):
             else:
                 pred = {
                     "boxes": torch.tensor(boxes, dtype=torch.float32),
-                    "scores": torch.tensor(scores, dtype=torch.float32),
+                    "scores": torch.tensor(confidences, dtype=torch.float32),
                     "labels": torch.tensor(labels, dtype=torch.int64),
                 }
-
             batch_preds.append(pred)
 
         return batch_preds
 
     def predict(self, images, threshold=0.5):
+        """
+        Gets the raw outputs from a batch of images and transforms them into dictionary-style predictions.
+        Essentially a wrapper for decode_predictions method.
+        """
         self.eval()
         with torch.no_grad():
             outputs = self(images)
@@ -119,7 +117,8 @@ class Model(nn.Module):
 
 
 if __name__ == '__main__':
+    """Summarizes model architecture and shows output shape."""
     summary(Model(), input_size=(1, 3, 112, 112), verbose=1)
 
-    x = torch.randn(1, 3, 112, 112)
-    print(Model()(x).shape)
+    test_tensor = torch.randn(1, 3, 112, 112)
+    print(Model()(test_tensor).shape)
