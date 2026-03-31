@@ -92,13 +92,13 @@ class Model(nn.Module):
             if len(confidences) == 0:  # no predictions :(
                 pred = {
                     "boxes": torch.zeros((0, 4)),
-                    "scores": torch.zeros((0,)),
+                    "confidences": torch.zeros((0,)),
                     "labels": torch.zeros((0,), dtype=torch.int64),
                 }
             else:
                 pred = {
                     "boxes": torch.tensor(boxes, dtype=torch.float32),
-                    "scores": torch.tensor(confidences, dtype=torch.float32),
+                    "confidences": torch.tensor(confidences, dtype=torch.float32),
                     "labels": torch.tensor(labels, dtype=torch.int64),
                 }
             batch_preds.append(pred)

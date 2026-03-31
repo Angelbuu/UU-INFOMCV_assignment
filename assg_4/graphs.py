@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-CLASS_NAMES = ["cat", "dog"]
+CLASS_NAMES = ['cat', 'dog']
 
 
 def plot_losses(history, component: str, y_label='Loss', title='Training vs Validation'):
@@ -25,22 +25,14 @@ def plot_losses(history, component: str, y_label='Loss', title='Training vs Vali
     plt.savefig(f'{title}.png')
 
 
-def plot_confusion_matrix(confusion, class_names=None, title="Confusion Matrix"):
-    """
-    confusion: tensor of shape (num_classes+1, num_classes+1)
-    """
+def plot_confusion_matrix(confusion, title="Confusion Matrix"):
+    """Plots a heatmap confusion matrix for cats and dogs detection."""
     confusion = confusion.numpy()
 
-    if class_names is None:
-        class_names = ["Cat", "Dog"]
-
-    # Add background label
-    labels = class_names + ["Background"]
+    labels = CLASS_NAMES + ["Background"]
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    im = ax.imshow(confusion)
 
-    # Show values inside cells
     for i in range(confusion.shape[0]):
         for j in range(confusion.shape[1]):
             ax.text(
@@ -49,7 +41,6 @@ def plot_confusion_matrix(confusion, class_names=None, title="Confusion Matrix")
                 color="black" if confusion[i, j] > confusion.max() / 2 else "white"
             )
 
-    # Axis labels
     ax.set_xticks(np.arange(len(labels)))
     ax.set_yticks(np.arange(len(labels)))
 
@@ -60,30 +51,24 @@ def plot_confusion_matrix(confusion, class_names=None, title="Confusion Matrix")
     ax.set_ylabel("True label")
     ax.set_title(title)
 
-    plt.colorbar(im)
     plt.tight_layout()
     plt.show()
 
 
-def visualize_predictions(model, dataloader, threshold=0.5, device="cpu"):
+def visualize_predictions(model, dataloader, threshold=0.5):
+    """Displays a batch of images with their ground truth and predicted labels and bounding boxes."""
     model.eval()
-
     images, bboxes_list, labels_list, _ = next(iter(dataloader))
-    images = images.to(device)
 
     with torch.no_grad():
         preds = model.predict(images, threshold)
 
     fig, axes = plt.subplots(1, len(images), figsize=(15, 5))
 
-    if len(images) == 1:
-        axes = [axes]
-
     for i in range(len(images)):
         img = images[i].cpu().permute(1, 2, 0).numpy()
         axes[i].imshow(img)
 
-        # --- Ground truth (RED) ---
         for box, lbl in zip(bboxes_list[i], labels_list[i]):
             xmin, ymin, xmax, ymax = box.tolist()
 
@@ -101,14 +86,12 @@ def visualize_predictions(model, dataloader, threshold=0.5, device="cpu"):
                 bbox=dict(facecolor='white', alpha=0.5)
             )
 
-        # --- Predictions (GREEN) ---
         pred = preds[i]
 
-        for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
+        for box, score, lbl in zip(pred["boxes"], pred["confidences"], pred["labels"]):
             h, w, _ = img.shape
             xmin, ymin, xmax, ymax = box.tolist()
 
-            # scale to image size
             xmin *= w
             xmax *= w
             ymin *= h
