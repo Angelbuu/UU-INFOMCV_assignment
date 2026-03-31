@@ -11,16 +11,17 @@ WEIGHT_NOOBJ = 0.5
 
 
 def minibatch_forward_pass(model, minibatch):
+    """Computes and returns yolo loss and its individual components from samples of a minibatch."""
     images, _, _, targets = minibatch
     outputs = model(images)
     outputs = outputs.view(-1, GRID_SIZE, GRID_SIZE, ENTRIES_PER_GRID)
 
-    obj_mask = targets[..., 4] == 1  # shape (B,7,7)
+    obj_mask = targets[..., 4] == 1
     noobj_mask = targets[..., 4] == 0
 
     coord_loss = WEIGHT_COORD * ((outputs[..., 0:2] - targets[..., 0:2]) ** 2 * obj_mask.unsqueeze(-1)).sum()
 
-    pred_wh_sqrt = torch.sign(outputs[..., 2:4]) * torch.sqrt(torch.abs(outputs[..., 2:4]) + 1e-6)
+    pred_wh_sqrt = torch.sqrt(outputs[..., 2:4])
     target_wh_sqrt = torch.sqrt(targets[..., 2:4])
     size_loss = WEIGHT_COORD * ((pred_wh_sqrt - target_wh_sqrt) ** 2 * obj_mask.unsqueeze(-1)).sum()
 
@@ -43,6 +44,7 @@ def minibatch_forward_pass(model, minibatch):
 
 
 def validate(model, val_data):
+    """Computes batch-average loss and its components of a (validation) set."""
     model.eval()
     epoch_sums = {'total': 0, 'coord': 0, 'size': 0, 'obj': 0, 'noobj': 0, 'class': 0}
     num_batches = 0
@@ -59,6 +61,10 @@ def validate(model, val_data):
 
 
 def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, patience=5):
+    """
+    Trains the model with early stopping on validation loss, returns batch-average train and validation losses
+    (and their individual components) per epoch.
+    """
     opt = optim(model.parameters(), lr=lr)
 
     best_val_loss = float('inf')
@@ -93,11 +99,7 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
 
         val_loss = val_components["total"]
 
-        print(
-            f'Epoch {epoch + 1} | '
-            f'Train Loss: {epoch_avg["total"]:.2f} | '
-            f'Val Loss: {val_loss:.2f}'
-        )
+        print(f'Epoch {epoch + 1} | Train Loss: {epoch_avg["total"]:.2f} | Val Loss: {val_loss:.2f}')
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -112,6 +114,7 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
 
 
 def main():
+    """Trains the model, saves parameters and plots train and validation losses over epochs."""
     os.makedirs('checkpoints', exist_ok=True)
 
     train_data, val_data, _ = prepare_datasets(batch_size=32)
