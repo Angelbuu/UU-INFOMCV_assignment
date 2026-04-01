@@ -127,4 +127,4 @@ def main(augment_data=False):
 
 
 if __name__ == '__main__':
-    main()
+    main(augment_data=False)
