@@ -7,7 +7,7 @@ from torchvision.ops import nms as tv_nms
 from preprocessing import GRID_SIZE, ENTRIES_PER_GRID
 
 
-def _nms_single_image(boxes, scores, labels, iou_threshold=0.45):
+def nms_single_image(boxes, scores, labels, iou_threshold=0.45):
     """Greedy per-class NMS; boxes xyxy in [0,1]."""
     if boxes.numel() == 0:
         return boxes, scores, labels
@@ -57,8 +57,9 @@ class Model(nn.Module):
         self.batch_norm_5 = nn.BatchNorm2d(32)
         # out: 7x7x32
         self.flatten = nn.Flatten()
-        self.dropout = nn.Dropout(p=0.5)
+        # out: 1568
         self.fc = nn.Linear(1568, 512)
+        self.dropout = nn.Dropout(p=0.5)
         self.out = nn.Linear(512, self.grid_size * self.grid_size * self.entries_per_grid)
         # out: 343
 
@@ -69,15 +70,14 @@ class Model(nn.Module):
         out = self.pool_3(tf.relu(self.batch_norm_3(self.conv_3(out))))
         out = self.pool_4(tf.relu(self.batch_norm_4(self.conv_4(out))))
         out = self.flatten(tf.relu(self.batch_norm_5(self.conv_5(out))))
-        out = self.dropout(out)
-        out = tf.relu(self.fc(out))
+        out = self.dropout(tf.relu(self.fc(out)))
         out = tf.sigmoid(self.out(out))
         return out
 
     def decode_predictions(self, outputs, threshold, apply_nms=False):
         """
         Transforms a batch of raw model outputs into a batch (list) of dictionary style predictions
-        based on a confidence/objectness threshold. apply_nms runs post-hoc NMS (CHOICE 8).
+        based on a confidence/objectness threshold. Optionally applies nms.
         """
         outputs = outputs.view(-1, self.grid_size, self.grid_size, self.entries_per_grid)
         batch_preds = []
@@ -123,7 +123,7 @@ class Model(nn.Module):
                 sc = torch.tensor(confidences, dtype=torch.float32)
                 lb = torch.tensor(labels, dtype=torch.int64)
                 if apply_nms:
-                    bx, sc, lb = _nms_single_image(bx, sc, lb)
+                    bx, sc, lb = nms_single_image(bx, sc, lb)
                 pred = {
                     "boxes": bx,
                     "scores": sc,
@@ -134,7 +134,10 @@ class Model(nn.Module):
         return batch_preds
 
     def predict(self, images, threshold=0.5, apply_nms=False):
-        """decode_predictions wrapper; apply_nms only at inference (CHOICE 8)."""
+        """
+        Gets the raw outputs from a batch of images and transforms them into dictionary-style predictions.
+        Essentially a wrapper for decode_predictions method. Optionally applies non-maximum suppression.
+        """
         self.eval()
         with torch.no_grad():
             outputs = self(images)
