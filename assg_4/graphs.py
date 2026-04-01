@@ -116,3 +116,57 @@ def visualize_predictions(model, dataloader, threshold=0.5):
 
     plt.tight_layout()
     plt.show()
+
+
+def visualize_single_prediction(image, gt_boxes, gt_labels, pred, save_path):
+    """Visualizes a single prediction."""
+    img = image.cpu().permute(1, 2, 0).numpy()
+    img = img.clip(0, 1)
+
+    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+    ax.imshow(img)
+
+    for box, lbl in zip(gt_boxes, gt_labels):
+        xmin, ymin, xmax, ymax = box.tolist()
+
+        rect = patches.Rectangle(
+            (xmin, ymin), xmax - xmin, ymax - ymin,
+            linewidth=2, edgecolor='red', facecolor='none'
+        )
+        ax.add_patch(rect)
+
+        ax.text(
+            xmin, ymin - 5,
+            f"GT: {CLASS_NAMES[lbl.item()]}",
+            color='red',
+            fontsize=10,
+            bbox=dict(facecolor='white', alpha=0.5)
+        )
+
+    for box, score, lbl in zip(pred["boxes"], pred["scores"], pred["labels"]):
+        h, w, _ = img.shape
+        xmin, ymin, xmax, ymax = box.tolist()
+
+        xmin *= w
+        xmax *= w
+        ymin *= h
+        ymax *= h
+
+        rect = patches.Rectangle(
+            (xmin, ymin), xmax - xmin, ymax - ymin,
+            linewidth=2, edgecolor='green', facecolor='none'
+        )
+        ax.add_patch(rect)
+
+        ax.text(
+            xmin, ymax + 5,
+            f"Pred: {CLASS_NAMES[lbl.item()]} ({score:.2f})",
+            color='green',
+            fontsize=10,
+            bbox=dict(facecolor='white', alpha=0.5)
+        )
+
+    ax.axis('off')
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=120)
+    plt.close()
