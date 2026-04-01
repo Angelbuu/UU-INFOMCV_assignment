@@ -45,43 +45,48 @@ def evaluate_thresholds(model, dataloader, thresholds):
     """Performs dataset evaluation sweep over thresholds. Metrics include mAP and F1 score."""
     results = []
 
-    for t in thresholds:
-        preds, targets = get_predictions(model, dataloader, t)
+    for threshold in thresholds:
+        preds, targets = get_predictions(model, dataloader, threshold)
 
-        mAP = compute_map(preds, targets)
-        f1_avg, f1_per_class = compute_f1(preds, targets)
+        m_ap = compute_map(preds, targets)
+        f1 = compute_f1(preds, targets)
 
         results.append({
-            "threshold": t,
-            "mAP": mAP,
-            "F1": f1_avg,
-            "F1_per_class": f1_per_class
+            "threshold": threshold,
+            "mAP": m_ap,
+            "F1": f1,
         })
 
     return results
 
 
 def main():
-    datasets = prepare_datasets(batch_size=32)
+    """
+    Evaluates each dataset at different thresholds and reports threshold for best F1 and corresponding mAP.
+    For test set, plots confusion matrix and some test samples with predictions.
+    """
+    dataset_names = ['Train set', 'Val set', 'Test set']
+    datasets = prepare_datasets(batch_size=4)
     model = Model()
     model.load_state_dict(torch.load('checkpoints/yolo.pt'))
 
-    for dataset in datasets:
-        thresholds = torch.linspace(0, 1, 3)
+    for idx, dataset in enumerate(datasets):
+        print('Evaluating:', dataset_names[idx])
+        thresholds = torch.linspace(0, 1, 20)
         results = evaluate_thresholds(model, dataset, thresholds)
 
-        best = max(results, key=lambda x: x["F1"])
-        best_threshold = best["threshold"]
+        best = max(results, key=lambda x: x['F1'])
+        best_threshold = best['threshold']
+        print('Best F1 at threshold:', best_threshold)
+        print('mAP at that threshold:', best['mAP'])
 
-        preds, targets = get_predictions(model, dataset, best_threshold)
-        conf_matrix = compute_confusion_matrix(preds, targets)
+        if dataset_names[idx] == 'Test set':
+            preds, targets = get_predictions(model, dataset, best_threshold)
+            conf_matrix = compute_confusion_matrix(preds, targets)
+            plot_confusion_matrix(conf_matrix)
+            visualize_predictions(model, dataset, threshold=best_threshold)
 
-        print('mAP:')
-        for result in results:
-            print('Threshold:', result['threshold'], 'mAP:', result['mAP'])
-        plot_confusion_matrix(conf_matrix)
-
-        visualize_predictions(model, dataset)
+        print()
 
 
 if __name__ == '__main__':
