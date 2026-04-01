@@ -106,22 +106,16 @@ class CatDogDataset(Dataset):
         return image, bboxes, labels, target
 
 
-def stratified_train_val_indices(dataset, val_ratio=0.2, random_state=42):
-    """Train/val index lists for an 80/20 stratified split."""
-    labels = []
-    for i in range(len(dataset)):
-        _, _, objects = dataset.parse_annotation(dataset.ann_files[i])
-        labels.append(objects[0]['label'] if objects else 0)
+def split_data_indices(dataset, test_ratio, val_ratio):
+    """Creates indices for train, validation and test sets."""
+    labels = [dataset.parse_annotation(dataset.ann_files[i])[2][0]['label'] for i in range(len(dataset))]
     indices = list(range(len(dataset)))
-    return train_test_split(indices, test_size=val_ratio, stratify=labels, random_state=random_state)
+    train_val_idx, test_idx = train_test_split(indices, test_size=test_ratio, stratify=labels)
 
+    train_val_labels = [labels[i] for i in train_val_idx]
+    train_idx, val_idx = train_test_split(train_val_idx, test_size=val_ratio, stratify=train_val_labels)
 
-def split_data(dataset, val_ratio=0.2, random_state=42):
-    """Stratified 80/20 train/val (assignment). Third return mirrors val for evaluate.py compatibility."""
-    train_idx, val_idx = stratified_train_val_indices(dataset, val_ratio, random_state)
-    train_data = Subset(dataset, train_idx)
-    val_data = Subset(dataset, val_idx)
-    return train_data, val_data, val_data
+    return train_idx, val_idx, test_idx
 
 
 def visualize_batch(dataloader):
@@ -158,13 +152,14 @@ def yolo_collate_fn(batch):
 
 
 def prepare_datasets(batch_size=4, augment_train=False):
-    """Prepares dataloaders. augment_train=True adds photometric aug only (CHOICE 6); bboxes unchanged."""
-    val_tf = T.Compose([
+    """Prepares dataloaders for train, validation and test sets. Optionally augments the training set."""
+    transform = T.Compose([
         T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
-        T.ToTensor(),
+        T.ToTensor()
     ])
+
     if augment_train:
-        train_tf = T.Compose([
+        train_transform = T.Compose([
             T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
             T.RandomApply([T.ColorJitter(0.22, 0.22, 0.22, 0.1)], p=0.85),
             T.RandomApply([T.GaussianBlur(kernel_size=3, sigma=(0.1, 1.6))], p=0.25),
@@ -172,30 +167,27 @@ def prepare_datasets(batch_size=4, augment_train=False):
             T.ToTensor(),
         ])
     else:
-        train_tf = val_tf
+        train_transform = transform
 
-    ds_for_split = CatDogDataset(
-        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=val_tf
-    )
-    train_idx, val_idx = stratified_train_val_indices(ds_for_split)
+    full_dataset = CatDogDataset(IMG_DIR, ANNOTATION_DIR, INPUT_IMG_SIZE, transform=None)
+    train_idx, val_idx, test_idx = split_data_indices(full_dataset, 0.2, 0.2)
 
-    ds_train = CatDogDataset(
-        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=train_tf
-    )
-    ds_val = CatDogDataset(
-        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=val_tf
-    )
+    train_dataset = CatDogDataset(IMG_DIR, ANNOTATION_DIR, INPUT_IMG_SIZE, transform=train_transform)
+    val_dataset = CatDogDataset(IMG_DIR, ANNOTATION_DIR, INPUT_IMG_SIZE, transform=transform)
+    test_dataset = CatDogDataset(IMG_DIR, ANNOTATION_DIR, INPUT_IMG_SIZE, transform=transform)
 
-    train_dataloader = DataLoader(
-        Subset(ds_train, train_idx), batch_size=batch_size, shuffle=True, collate_fn=yolo_collate_fn
-    )
-    val_dataloader = DataLoader(
-        Subset(ds_val, val_idx), batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn
-    )
-    return train_dataloader, val_dataloader, val_dataloader
+    train_set = Subset(train_dataset, train_idx)
+    val_set = Subset(val_dataset, val_idx)
+    test_set = Subset(test_dataset, test_idx)
+
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=yolo_collate_fn)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
+
+    return train_loader, val_loader, test_loader
 
 
 if __name__ == '__main__':
     """Check if preparing datasets works and visualize a batch of training data."""
-    train_loader, val_loader, test_loader = prepare_datasets()
-    visualize_batch(train_loader)
+    train, val, test = prepare_datasets(augment_train=True)
+    visualize_batch(train)
