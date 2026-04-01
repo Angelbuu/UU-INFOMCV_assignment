@@ -8,7 +8,7 @@ from preprocessing import GRID_SIZE, ENTRIES_PER_GRID
 
 
 def nms_single_image(boxes, scores, labels, iou_threshold=0.45):
-    """Greedy per-class NMS; boxes xyxy in [0,1]."""
+    """Applies non-maximum suppression to predicted bounding boxes in an image."""
     if boxes.numel() == 0:
         return boxes, scores, labels
     keep_all = []

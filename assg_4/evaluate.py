@@ -62,40 +62,37 @@ def evaluate_thresholds(model, dataloader, thresholds):
 
 def main():
     """
-    mAP vs objectness threshold (0..1); confusion matrix at threshold with max average F1 (val set).
+    Evaluates each dataset at different thresholds and reports threshold for best F1 and corresponding mAP.
+    For test set, plots confusion matrix and some test samples with predictions.
     """
-    train_data, val_data, _ = prepare_datasets(batch_size=4)
+    dataset_names = ['Train set', 'Val set', 'Test set']
+    datasets = prepare_datasets(batch_size=4)
     model = Model()
     model.load_state_dict(torch.load('checkpoints/yolo.pt'))
 
-    thresholds = torch.linspace(0, 1, 51)
-
-    for dataset, name in [(train_data, 'Train set'), (val_data, 'Val set')]:
-        print('Evaluating:', name)
+    for idx, dataset in enumerate(datasets):
+        print('Evaluating:', dataset_names[idx])
+        thresholds = torch.linspace(0, 1, 20)
         results = evaluate_thresholds(model, dataset, thresholds)
 
-        print('threshold | mAP    | avg F1')
-        for r in results:
-            print(f"{r['threshold']:.3f}     | {r['mAP']:.4f} | {r['F1']:.4f}")
-
         best = max(results, key=lambda x: x['F1'])
-        print('Best avg F1 at threshold:', best['threshold'].item())
+        best_threshold = best['threshold']
+        print('Best F1 at threshold:', best_threshold)
         print('mAP at that threshold:', best['mAP'])
 
-        if name == 'Val set':
-            thr = float(best['threshold'])
-            preds, targets = get_predictions(model, dataset, thr, apply_nms=False)
+        if dataset_names[idx] == 'Test set':
+            preds, targets = get_predictions(model, dataset, best_threshold)
             conf_matrix = compute_confusion_matrix(preds, targets)
             plot_confusion_matrix(conf_matrix)
-            visualize_predictions(model, dataset, threshold=thr)
+            visualize_predictions(model, dataset, threshold=best_threshold)
 
-            # CHOICE 8: same threshold, mAP + confusion with vs without NMS (training unchanged)
-            preds_nms, _ = get_predictions(model, dataset, thr, apply_nms=True)
+            # choice task 8:
+            preds_nms, _ = get_predictions(model, dataset, best_threshold, apply_nms=True)
             map_no = compute_map(preds, targets)
             map_yes = compute_map(preds_nms, targets)
-            print('CHOICE 8 — same objectness threshold, mAP without NMS:', map_no, '| with NMS:', map_yes)
-            print('Confusion without NMS:\n', compute_confusion_matrix(preds, targets).numpy())
-            print('Confusion with NMS:\n', compute_confusion_matrix(preds_nms, targets).numpy())
+            print('Same objectness threshold, mAP without NMS:', map_no, '| with NMS:', map_yes)
+            plot_confusion_matrix(compute_confusion_matrix(preds, targets), title='Confusion matrix no NMS')
+            plot_confusion_matrix(compute_confusion_matrix(preds_nms, targets), title='Confusion matrix with NMS')
 
         print()
 

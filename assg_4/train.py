@@ -1,5 +1,4 @@
 import os
-import argparse
 import torch
 from torch.optim import Adam
 
@@ -114,17 +113,11 @@ def train(model, train_data, val_data, optim=Adam, lr=0.001, max_epochs=50, pati
     return model, history
 
 
-def main():
+def main(augment_data=False):
     """Trains the model, saves parameters and plots train and validation losses over epochs."""
-    p = argparse.ArgumentParser()
-    p.add_argument('--augment', action='store_true', help='CHOICE 6: photometric aug on train only')
-    a = p.parse_args()
-
     os.makedirs('checkpoints', exist_ok=True)
 
-    train_data, val_data, _ = prepare_datasets(batch_size=32, augment_train=a.augment)
-    if a.augment:
-        print('CHOICE 6: training with photometric augmentation on train split only')
+    train_data, val_data, _ = prepare_datasets(batch_size=32, augment_train=augment_data)
     model = Model()
     model, history = train(model, train_data, val_data)
     torch.save(model.state_dict(), 'checkpoints/yolo.pt')
