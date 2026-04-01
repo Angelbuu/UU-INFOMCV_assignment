@@ -6,7 +6,7 @@ from graphs import plot_confusion_matrix, visualize_predictions
 from compute_metrics import compute_map, compute_f1, compute_confusion_matrix
 
 
-def get_predictions(model, dataloader, threshold):
+def get_predictions(model, dataloader, threshold, apply_nms=False):
     """
     Returns a list of target dictionaries (bounding boxes, labels) and prediction dictionaries (bounding boxes,
     labels and confidence scores) for the entire dataset.
@@ -17,7 +17,7 @@ def get_predictions(model, dataloader, threshold):
 
     with torch.no_grad():
         for images, bboxes_list, labels_list, _ in dataloader:
-            batch_preds = model.predict(images, threshold)
+            batch_preds = model.predict(images, threshold, apply_nms=apply_nms)
 
             for i in range(len(images)):
                 bboxes = bboxes_list[i]
@@ -62,29 +62,40 @@ def evaluate_thresholds(model, dataloader, thresholds):
 
 def main():
     """
-    Evaluates each dataset at different thresholds and reports threshold for best F1 and corresponding mAP.
-    For test set, plots confusion matrix and some test samples with predictions.
+    mAP vs objectness threshold (0..1); confusion matrix at threshold with max average F1 (val set).
     """
-    dataset_names = ['Train set', 'Val set', 'Test set']
-    datasets = prepare_datasets(batch_size=4)
+    train_data, val_data, _ = prepare_datasets(batch_size=4)
     model = Model()
     model.load_state_dict(torch.load('checkpoints/yolo.pt'))
 
-    for idx, dataset in enumerate(datasets):
-        print('Evaluating:', dataset_names[idx])
-        thresholds = torch.linspace(0, 1, 20)
+    thresholds = torch.linspace(0, 1, 51)
+
+    for dataset, name in [(train_data, 'Train set'), (val_data, 'Val set')]:
+        print('Evaluating:', name)
         results = evaluate_thresholds(model, dataset, thresholds)
 
+        print('threshold | mAP    | avg F1')
+        for r in results:
+            print(f"{r['threshold']:.3f}     | {r['mAP']:.4f} | {r['F1']:.4f}")
+
         best = max(results, key=lambda x: x['F1'])
-        best_threshold = best['threshold']
-        print('Best F1 at threshold:', best_threshold)
+        print('Best avg F1 at threshold:', best['threshold'].item())
         print('mAP at that threshold:', best['mAP'])
 
-        if dataset_names[idx] == 'Test set':
-            preds, targets = get_predictions(model, dataset, best_threshold)
+        if name == 'Val set':
+            thr = float(best['threshold'])
+            preds, targets = get_predictions(model, dataset, thr, apply_nms=False)
             conf_matrix = compute_confusion_matrix(preds, targets)
             plot_confusion_matrix(conf_matrix)
-            visualize_predictions(model, dataset, threshold=best_threshold)
+            visualize_predictions(model, dataset, threshold=thr)
+
+            # CHOICE 8: same threshold, mAP + confusion with vs without NMS (training unchanged)
+            preds_nms, _ = get_predictions(model, dataset, thr, apply_nms=True)
+            map_no = compute_map(preds, targets)
+            map_yes = compute_map(preds_nms, targets)
+            print('CHOICE 8 — same objectness threshold, mAP without NMS:', map_no, '| with NMS:', map_yes)
+            print('Confusion without NMS:\n', compute_confusion_matrix(preds, targets).numpy())
+            print('Confusion with NMS:\n', compute_confusion_matrix(preds_nms, targets).numpy())
 
         print()
 

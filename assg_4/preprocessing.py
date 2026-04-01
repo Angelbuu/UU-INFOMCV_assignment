@@ -106,19 +106,22 @@ class CatDogDataset(Dataset):
         return image, bboxes, labels, target
 
 
-def split_data(dataset, test_ratio, val_ratio):
-    """Split the dataset into train, validation and test subsets."""
-    labels = [dataset.parse_annotation(dataset.ann_files[i])[2][0]['label'] for i in range(len(dataset))]
+def stratified_train_val_indices(dataset, val_ratio=0.2, random_state=42):
+    """Train/val index lists for an 80/20 stratified split."""
+    labels = []
+    for i in range(len(dataset)):
+        _, _, objects = dataset.parse_annotation(dataset.ann_files[i])
+        labels.append(objects[0]['label'] if objects else 0)
     indices = list(range(len(dataset)))
-    train_val_idx, test_idx = train_test_split(indices, test_size=test_ratio, stratify=labels)
+    return train_test_split(indices, test_size=val_ratio, stratify=labels, random_state=random_state)
 
-    train_val_labels = [labels[i] for i in train_val_idx]
-    train_idx, val_idx = train_test_split(train_val_idx, test_size=val_ratio, stratify=train_val_labels)
 
+def split_data(dataset, val_ratio=0.2, random_state=42):
+    """Stratified 80/20 train/val (assignment). Third return mirrors val for evaluate.py compatibility."""
+    train_idx, val_idx = stratified_train_val_indices(dataset, val_ratio, random_state)
     train_data = Subset(dataset, train_idx)
     val_data = Subset(dataset, val_idx)
-    test_data = Subset(dataset, test_idx)
-    return train_data, val_data, test_data
+    return train_data, val_data, val_data
 
 
 def visualize_batch(dataloader):
@@ -154,24 +157,42 @@ def yolo_collate_fn(batch):
     return images, bboxes, labels, targets
 
 
-def prepare_datasets(batch_size=4):
-    """Prepares dataloaders for train, validation and test sets."""
-    transform = T.Compose([
+def prepare_datasets(batch_size=4, augment_train=False):
+    """Prepares dataloaders. augment_train=True adds photometric aug only (CHOICE 6); bboxes unchanged."""
+    val_tf = T.Compose([
         T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
-        T.ToTensor()
+        T.ToTensor(),
     ])
+    if augment_train:
+        train_tf = T.Compose([
+            T.Resize((INPUT_IMG_SIZE, INPUT_IMG_SIZE)),
+            T.RandomApply([T.ColorJitter(0.22, 0.22, 0.22, 0.1)], p=0.85),
+            T.RandomApply([T.GaussianBlur(kernel_size=3, sigma=(0.1, 1.6))], p=0.25),
+            T.RandomAutocontrast(p=0.25),
+            T.ToTensor(),
+        ])
+    else:
+        train_tf = val_tf
 
-    dataset = CatDogDataset(img_dir=IMG_DIR,
-                            ann_dir=ANNOTATION_DIR,
-                            input_img_size=INPUT_IMG_SIZE,
-                            transform=transform)
-    train_set, val_set, test_set = split_data(dataset, 0.2, 0.2)
+    ds_for_split = CatDogDataset(
+        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=val_tf
+    )
+    train_idx, val_idx = stratified_train_val_indices(ds_for_split)
 
-    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=yolo_collate_fn)
-    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
-    test_dataloader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn)
+    ds_train = CatDogDataset(
+        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=train_tf
+    )
+    ds_val = CatDogDataset(
+        img_dir=IMG_DIR, ann_dir=ANNOTATION_DIR, input_img_size=INPUT_IMG_SIZE, transform=val_tf
+    )
 
-    return train_dataloader, val_dataloader, test_dataloader
+    train_dataloader = DataLoader(
+        Subset(ds_train, train_idx), batch_size=batch_size, shuffle=True, collate_fn=yolo_collate_fn
+    )
+    val_dataloader = DataLoader(
+        Subset(ds_val, val_idx), batch_size=batch_size, shuffle=False, collate_fn=yolo_collate_fn
+    )
+    return train_dataloader, val_dataloader, val_dataloader
 
 
 if __name__ == '__main__':
